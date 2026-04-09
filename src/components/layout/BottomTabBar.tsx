@@ -6,12 +6,14 @@ import { cn } from '../../lib/utils'
 const residentTabs = [
   { to: '/resident', icon: Home, label: 'Home', end: true },
   { to: '/resident/attendance', icon: Calendar, label: 'Attendance' },
+  { to: '/resident/calendar', icon: Calendar, label: 'Calendar' },
   { to: '/resident/skills', icon: Stethoscope, label: 'Skills' },
 ]
 
 const supervisorTabs = [
   { to: '/supervisor', icon: Home, label: 'Home', end: true },
   { to: '/supervisor/sessions', icon: Users, label: 'Residents' },
+  { to: '/supervisor/calendar', icon: Calendar, label: 'Calendar' },
   { to: '/supervisor/logs', icon: ScrollText, label: 'Logs' },
   { to: '/supervisor/skills', icon: Stethoscope, label: 'Skills' },
 ]
@@ -20,6 +22,7 @@ const adminTabs = [
   { to: '/admin', icon: Home, label: 'Dashboard', end: true },
   { to: '/admin/users', icon: Users, label: 'Users' },
   { to: '/admin/sessions', icon: ClipboardList, label: 'Hospital' },
+  { to: '/admin/calendar', icon: Calendar, label: 'Calendar' },
   { to: '/admin/reports', icon: BarChart2, label: 'Reports' },
   { to: '/admin/logs', icon: ScrollText, label: 'Logs' },
 ]
