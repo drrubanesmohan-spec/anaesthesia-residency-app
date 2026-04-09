@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Trash2, X, ChevronDown } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Spinner } from '../../components/ui/Spinner'
 import { supabase } from '../../lib/supabaseClient'
@@ -147,9 +147,11 @@ export function CalendarPage() {
     ))
     return cached ? (JSON.parse(cached) as CalendarEvent[]) : []
   })
-  const [loading,  setLoading]  = useState(events.length === 0) // skip spinner if we have cache
-  const [showModal, setShowModal] = useState(() => ss(SS_MODAL) === '1')
-  const [deleting, setDeleting] = useState<string | null>(null)
+  const [loading,    setLoading]   = useState(events.length === 0)
+  const [showModal,  setShowModal]  = useState(() => ss(SS_MODAL) === '1')
+  const [showPicker, setShowPicker] = useState(false)
+  const [pickYear,   setPickYear]   = useState(year)
+  const [deleting,   setDeleting]   = useState<string | null>(null)
 
   // Persist state helpers
   function setYear(y: number)     { setYearRaw(y);  ssSet(SS_YEAR, String(y)) }
@@ -228,14 +230,75 @@ export function CalendarPage() {
         {/* Month grid */}
         <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">
-            <button onClick={prevMonth} className="p-1.5 rounded-full hover:bg-slate-700/50 transition-colors text-slate-300">
+            <button
+              onClick={prevMonth}
+              className="p-1.5 rounded-full hover:bg-slate-700/50 transition-colors text-slate-300"
+            >
               <ChevronLeft size={18} />
             </button>
-            <span className="text-sm font-semibold text-white">{monthLabel}</span>
-            <button onClick={nextMonth} className="p-1.5 rounded-full hover:bg-slate-700/50 transition-colors text-slate-300">
+
+            {/* Month/year label — tapping opens picker */}
+            <button
+              onClick={() => { setPickYear(year); setShowPicker(v => !v) }}
+              className="flex items-center gap-1 text-sm font-semibold text-white hover:text-blue-300 transition-colors"
+            >
+              {monthLabel}
+              <ChevronDown size={14} className={cn('transition-transform', showPicker && 'rotate-180')} />
+            </button>
+
+            <button
+              onClick={nextMonth}
+              className="p-1.5 rounded-full hover:bg-slate-700/50 transition-colors text-slate-300"
+            >
               <ChevronRight size={18} />
             </button>
           </div>
+
+          {/* Month/year picker dropdown */}
+          {showPicker && (
+            <div className="border-b border-slate-700/50 px-3 pt-3 pb-4 bg-slate-800/60">
+              {/* Year row */}
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  onClick={() => setPickYear(y => y - 1)}
+                  className="p-1 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span className="text-sm font-bold text-white">{pickYear}</span>
+                <button
+                  onClick={() => setPickYear(y => y + 1)}
+                  className="p-1 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+              {/* Month grid 3×4 */}
+              <div className="grid grid-cols-4 gap-1">
+                {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => {
+                  const isCurrent = pickYear === year && i === month
+                  return (
+                    <button
+                      key={m}
+                      onClick={() => {
+                        setYear(pickYear)
+                        setMonth(i)
+                        setShowPicker(false)
+                      }}
+                      className={cn(
+                        'rounded-lg py-1.5 text-xs font-medium transition-colors',
+                        isCurrent
+                          ? 'bg-blue-500 text-white'
+                          : 'text-slate-300 hover:bg-slate-700'
+                      )}
+                    >
+                      {m}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* DOW row */}
           <div className="grid grid-cols-7 px-2 pt-3">
