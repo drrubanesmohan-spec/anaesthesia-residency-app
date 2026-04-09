@@ -10,6 +10,7 @@ interface CalendarEvent {
   id: string
   title: string
   date: string
+  end_date: string | null
   description: string | null
   created_by: string | null
 }
@@ -21,6 +22,7 @@ const SS_SELECTED = 'cal_selected'
 const SS_EVENTS   = 'cal_events_'   // + "YYYY-MM" key
 const SS_DRAFT_T  = 'cal_draft_title'
 const SS_DRAFT_D  = 'cal_draft_desc'
+const SS_DRAFT_ED = 'cal_draft_enddate'
 const SS_MODAL    = 'cal_modal_open'
 
 function ss(key: string): string | null {
@@ -55,30 +57,41 @@ function AddEventModal({
   onSaved: (event: CalendarEvent) => void
 }) {
   const { appUser } = useAuth()
-  const [title, setTitle]       = useState(() => ss(SS_DRAFT_T) ?? '')
-  const [description, setDesc]  = useState(() => ss(SS_DRAFT_D) ?? '')
-  const [saving, setSaving]     = useState(false)
-  const [error, setError]       = useState('')
+  const [title,   setTitle]   = useState(() => ss(SS_DRAFT_T)  ?? '')
+  const [endDate, setEndDate] = useState(() => ss(SS_DRAFT_ED) ?? date)
+  const [desc,    setDesc]    = useState(() => ss(SS_DRAFT_D)  ?? '')
+  const [saving,  setSaving]  = useState(false)
+  const [error,   setError]   = useState('')
 
-  // Persist draft on every keystroke
-  function handleTitle(v: string)  { setTitle(v);  ssSet(SS_DRAFT_T, v) }
-  function handleDesc(v: string)   { setDesc(v);   ssSet(SS_DRAFT_D, v) }
+  function handleTitle(v: string)   { setTitle(v);   ssSet(SS_DRAFT_T, v) }
+  function handleDesc(v: string)    { setDesc(v);    ssSet(SS_DRAFT_D, v) }
+  function handleEndDate(v: string) {
+    // end must be >= start
+    const safe = v < date ? date : v
+    setEndDate(safe)
+    ssSet(SS_DRAFT_ED, safe)
+  }
 
-  const label = new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric',
-  })
+  const startLabel = new Date(date    + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  const endLabel   = new Date(endDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  const isMultiDay = endDate !== date
 
   async function submit() {
     if (!title.trim()) { setError('Title is required'); return }
     setSaving(true)
     const { data, error: err } = await supabase
       .from('calendar_events')
-      .insert({ title: title.trim(), date, description: description.trim() || null, created_by: appUser?.id })
+      .insert({
+        title: title.trim(),
+        date,
+        end_date: endDate !== date ? endDate : null,
+        description: desc.trim() || null,
+        created_by: appUser?.id,
+      })
       .select()
       .single()
     if (err) { setError(err.message); setSaving(false); return }
-    // Clear persisted draft on success
-    ssRemove(SS_DRAFT_T); ssRemove(SS_DRAFT_D); ssRemove(SS_MODAL)
+    ssRemove(SS_DRAFT_T); ssRemove(SS_DRAFT_D); ssRemove(SS_DRAFT_ED); ssRemove(SS_MODAL)
     onSaved(data as CalendarEvent)
     onClose()
   }
@@ -92,12 +105,12 @@ function AddEventModal({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-t-3xl bg-[#1e293b] p-5 pb-10 animate-in slide-in-from-bottom-4">
         <div className="flex items-center justify-between mb-4">
-          <span className="text-xs text-slate-400">{label}</span>
+          <span className="text-xs text-slate-400">New Event</span>
           <button onClick={handleClose} className="text-slate-400 hover:text-white transition-colors">
             <X size={18} />
           </button>
         </div>
-        <p className="text-base font-semibold text-white mb-4">New Event</p>
+
         <div className="space-y-3">
           <input
             autoFocus
@@ -107,13 +120,45 @@ function AddEventModal({
             onKeyDown={e => e.key === 'Enter' && submit()}
             className="w-full rounded-xl bg-slate-700/60 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-blue-500"
           />
+
+          {/* Date range row */}
+          <div className="rounded-xl bg-slate-700/60 overflow-hidden">
+            {/* Start date */}
+            <div className="flex items-center px-4 py-2.5 border-b border-slate-600/50">
+              <span className="text-xs text-slate-400 w-14 shrink-0">Starts</span>
+              <span className="flex-1 text-sm text-white">{startLabel}</span>
+              {/* Start date is fixed to selected day — shown as read-only */}
+              <span className="text-xs text-slate-500 italic">selected day</span>
+            </div>
+            {/* End date */}
+            <div className="flex items-center px-4 py-2.5">
+              <span className="text-xs text-slate-400 w-14 shrink-0">Ends</span>
+              <span className="flex-1 text-sm text-white">{isMultiDay ? endLabel : startLabel}</span>
+              <input
+                type="date"
+                value={endDate}
+                min={date}
+                onChange={e => handleEndDate(e.target.value)}
+                className="bg-transparent text-xs text-blue-400 outline-none cursor-pointer w-[1px] opacity-0 absolute"
+                id="end-date-input"
+              />
+              <label
+                htmlFor="end-date-input"
+                className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer font-medium"
+              >
+                Change
+              </label>
+            </div>
+          </div>
+
           <textarea
             placeholder="Notes (optional)"
-            value={description}
+            value={desc}
             onChange={e => handleDesc(e.target.value)}
             rows={3}
             className="w-full rounded-xl bg-slate-700/60 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-blue-500 resize-none"
           />
+
           {error && <p className="text-xs text-red-400">{error}</p>}
           <button
             onClick={submit}
@@ -140,9 +185,9 @@ export function CalendarPage() {
   const [year,     setYearRaw]     = useState<number>(() => parseInt(ss(SS_YEAR)  ?? String(now.getFullYear())))
   const [month,    setMonthRaw]    = useState<number>(() => parseInt(ss(SS_MONTH) ?? String(now.getMonth())))
   const [selected, setSelectedRaw] = useState<string>(() => ss(SS_SELECTED) ?? todayStr())
-  const [events,   setEvents]      = useState<CalendarEvent[]>(() => {
+  const [events, setEvents] = useState<CalendarEvent[]>(() => {
     const cached = ss(SS_EVENTS + monthKey(
-      parseInt(ss(SS_YEAR) ?? String(now.getFullYear())),
+      parseInt(ss(SS_YEAR)  ?? String(now.getFullYear())),
       parseInt(ss(SS_MONTH) ?? String(now.getMonth()))
     ))
     return cached ? (JSON.parse(cached) as CalendarEvent[]) : []
@@ -170,9 +215,10 @@ export function CalendarPage() {
     const lastDay  = isoDate(year, month, new Date(year, month + 1, 0).getDate())
     const { data } = await supabase
       .from('calendar_events')
-      .select('id, title, date, description, created_by')
-      .gte('date', firstDay)
+      .select('id, title, date, end_date, description, created_by')
+      // include events that overlap the month: start <= lastDay AND (end_date >= firstDay OR end_date is null and date >= firstDay)
       .lte('date', lastDay)
+      .or(`end_date.gte.${firstDay},end_date.is.null`)
       .order('date')
     const fresh = (data ?? []) as CalendarEvent[]
     setEvents(fresh)
@@ -192,8 +238,24 @@ export function CalendarPage() {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [loadMonth])
 
-  const eventDates    = new Set(events.map(e => e.date))
-  const selectedEvents = events.filter(e => e.date === selected)
+  // Build set of all dates covered by any event (including multi-day spans)
+  const eventDates = new Set<string>()
+  for (const ev of events) {
+    const start = ev.date
+    const end   = ev.end_date ?? ev.date
+    const cur   = new Date(start + 'T00:00:00')
+    const last  = new Date(end   + 'T00:00:00')
+    while (cur <= last) {
+      eventDates.add(cur.toISOString().slice(0, 10))
+      cur.setDate(cur.getDate() + 1)
+    }
+  }
+
+  // Events visible on selected day
+  const selectedEvents = events.filter(e => {
+    const end = e.end_date ?? e.date
+    return e.date <= selected && end >= selected
+  })
 
   async function deleteEvent(id: string) {
     setDeleting(id)
@@ -377,6 +439,13 @@ export function CalendarPage() {
                   <div className="mt-1 w-2 h-2 rounded-full bg-blue-400 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white">{ev.title}</p>
+                    {ev.end_date && ev.end_date !== ev.date && (
+                      <p className="text-xs text-blue-400/70 mt-0.5">
+                        {new Date(ev.date    + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {' → '}
+                        {new Date(ev.end_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </p>
+                    )}
                     {ev.description && (
                       <p className="text-xs text-slate-400 mt-0.5">{ev.description}</p>
                     )}
