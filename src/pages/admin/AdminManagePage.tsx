@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Spinner } from '../../components/ui/Spinner'
 import { supabase } from '../../lib/supabaseClient'
 import { useHospitals } from '../../hooks/useHospitals'
+import { useAuth } from '../../context/AuthContext'
 import { ResidentAssignments } from '../../components/assignments/ResidentAssignments'
 import { SupervisorAssignments } from '../../components/assignments/SupervisorAssignments'
 import type { UserRole } from '../../types/auth'
@@ -11,6 +12,7 @@ import {
   ArrowUpCircle, ArrowDownCircle,
   ChevronDown, ChevronUp, ChevronRight,
   Pencil, Check, X, Plus, Trash2,
+  CheckCircle2, XCircle, MinusCircle,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -262,9 +264,180 @@ function HospitalTab() {
   )
 }
 
+/* ─── Attendance god-mode tab ────────────────────────────────────── */
+
+interface Resident { id: string; full_name: string }
+interface AttRec { resident_id: string; status: 'present' | 'absent' }
+
+function AttendanceTab() {
+  const { appUser } = useAuth()
+  const today = new Date().toISOString().slice(0, 10)
+  const [date, setDate] = useState(today)
+  const [residents, setResidents] = useState<Resident[]>([])
+  const [records, setRecords] = useState<AttRec[]>([])
+  const [loadingRes, setLoadingRes] = useState(true)
+  const [loadingAtt, setLoadingAtt] = useState(false)
+  const [saving, setSaving] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+
+  // Load all residents once
+  useEffect(() => {
+    supabase.from('profiles').select('id, full_name').eq('role', 'resident').order('full_name')
+      .then(({ data }) => { setResidents((data ?? []) as Resident[]); setLoadingRes(false) })
+  }, [])
+
+  // Load attendance for selected date
+  const loadAtt = useCallback(async (d: string) => {
+    if (residents.length === 0) return
+    setLoadingAtt(true)
+    const { data } = await supabase
+      .from('daily_attendance')
+      .select('resident_id, status')
+      .eq('date', d)
+      .in('resident_id', residents.map(r => r.id))
+    setRecords((data ?? []) as AttRec[])
+    setLoadingAtt(false)
+  }, [residents])
+
+  useEffect(() => { loadAtt(date) }, [loadAtt, date])
+
+  async function mark(residentId: string, status: 'present' | 'absent' | null) {
+    if (!appUser) return
+    setSaving(residentId)
+    const now = new Date().toISOString()
+
+    if (status === null) {
+      // Clear record
+      await supabase.from('daily_attendance').delete()
+        .eq('resident_id', residentId).eq('date', date)
+      setRecords(prev => prev.filter(r => r.resident_id !== residentId))
+    } else {
+      await supabase.from('daily_attendance').upsert(
+        { resident_id: residentId, date, status, marked_by: appUser.id, marked_at: now },
+        { onConflict: 'resident_id,date' }
+      )
+      await supabase.from('daily_attendance_logs').insert(
+        { resident_id: residentId, date, status, marked_by: appUser.id, marked_at: now }
+      )
+      setRecords(prev => {
+        const exists = prev.find(r => r.resident_id === residentId)
+        return exists
+          ? prev.map(r => r.resident_id === residentId ? { ...r, status } : r)
+          : [...prev, { resident_id: residentId, status }]
+      })
+    }
+    setSaving(null)
+  }
+
+  const filtered = residents.filter(r =>
+    r.full_name.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const present = records.filter(r => r.status === 'present').length
+  const absent  = records.filter(r => r.status === 'absent').length
+  const unmarked = residents.length - records.length
+
+  return (
+    <div className="space-y-3">
+      {/* Date + search */}
+      <div className="rounded-2xl border border-slate-700 bg-brand-light px-4 py-3 flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <input
+            type="date"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+            className="bg-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-amber-500"
+          />
+          <div className="flex gap-3 text-xs ml-auto">
+            <span className="text-emerald-400 font-medium">{present}P</span>
+            <span className="text-red-400 font-medium">{absent}A</span>
+            <span className="text-slate-500">{unmarked} unmarked</span>
+          </div>
+        </div>
+        <input
+          type="text"
+          placeholder="Search resident…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full bg-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-slate-500"
+        />
+      </div>
+
+      {/* Resident list */}
+      <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden">
+        {loadingRes ? (
+          <div className="flex justify-center py-8"><Spinner /></div>
+        ) : filtered.length === 0 ? (
+          <p className="px-4 py-4 text-xs text-slate-500">No residents found.</p>
+        ) : (
+          filtered.map((r, i) => {
+            const rec = records.find(x => x.resident_id === r.id)
+            const isSaving = saving === r.id
+            return (
+              <div
+                key={r.id}
+                className={cn(
+                  'flex items-center px-4 py-2.5 gap-3',
+                  i !== filtered.length - 1 && 'border-b border-slate-700/50',
+                  loadingAtt && 'opacity-50 pointer-events-none'
+                )}
+              >
+                <span className="text-xs text-slate-500 w-6 shrink-0">{i + 1}</span>
+                <span className="flex-1 text-sm text-white truncate">{r.full_name}</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => mark(r.id, 'present')}
+                    disabled={isSaving}
+                    className={cn(
+                      'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+                      rec?.status === 'present'
+                        ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500'
+                        : 'text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10'
+                    )}
+                  >
+                    <CheckCircle2 size={13} />P
+                  </button>
+                  <button
+                    onClick={() => mark(r.id, 'absent')}
+                    disabled={isSaving}
+                    className={cn(
+                      'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+                      rec?.status === 'absent'
+                        ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500'
+                        : 'text-slate-500 hover:text-red-400 hover:bg-red-500/10'
+                    )}
+                  >
+                    <XCircle size={13} />A
+                  </button>
+                  {rec && (
+                    <button
+                      onClick={() => mark(r.id, null)}
+                      disabled={isSaving}
+                      title="Clear"
+                      className="text-slate-600 hover:text-slate-400 transition-colors"
+                    >
+                      <MinusCircle size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
 /* ─── Combined page ──────────────────────────────────────────────── */
 
-type Segment = 'people' | 'hospital'
+type Segment = 'people' | 'hospital' | 'attendance'
+
+const SEGMENTS: { key: Segment; label: string }[] = [
+  { key: 'people',     label: 'People'     },
+  { key: 'hospital',   label: 'Hospital'   },
+  { key: 'attendance', label: 'Attendance' },
+]
 
 export function AdminManagePage() {
   const [segment, setSegment] = useState<Segment>('people')
@@ -273,23 +446,25 @@ export function AdminManagePage() {
     <AppShell title="Manage">
       {/* Segmented control */}
       <div className="flex rounded-xl bg-slate-800 p-1 mb-4">
-        {(['people', 'hospital'] as Segment[]).map(s => (
+        {SEGMENTS.map(s => (
           <button
-            key={s}
-            onClick={() => setSegment(s)}
+            key={s.key}
+            onClick={() => setSegment(s.key)}
             className={cn(
-              'flex-1 rounded-lg py-1.5 text-xs font-semibold capitalize transition-colors',
-              segment === s
+              'flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors',
+              segment === s.key
                 ? 'bg-brand-light text-white shadow'
                 : 'text-slate-500 hover:text-slate-300'
             )}
           >
-            {s === 'people' ? 'People' : 'Hospital'}
+            {s.label}
           </button>
         ))}
       </div>
 
-      {segment === 'people' ? <PeopleTab /> : <HospitalTab />}
+      {segment === 'people'     && <PeopleTab />}
+      {segment === 'hospital'   && <HospitalTab />}
+      {segment === 'attendance' && <AttendanceTab />}
     </AppShell>
   )
 }
