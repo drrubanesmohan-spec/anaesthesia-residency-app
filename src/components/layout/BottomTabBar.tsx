@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Calendar, Stethoscope, Users, ClipboardList, BarChart2, ScrollText } from 'lucide-react'
+import { Home, Calendar, Stethoscope, Users, BarChart2, ScrollText, LayoutGrid } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 
@@ -20,8 +20,7 @@ const supervisorTabs = [
 
 const adminTabs = [
   { to: '/admin', icon: Home, label: 'Dashboard', end: true },
-  { to: '/admin/users', icon: Users, label: 'Users' },
-  { to: '/admin/sessions', icon: ClipboardList, label: 'Hospital' },
+  { to: '/admin/manage', icon: LayoutGrid, label: 'Manage' },
   { to: '/admin/calendar', icon: Calendar, label: 'Calendar' },
   { to: '/admin/reports', icon: BarChart2, label: 'Reports' },
   { to: '/admin/logs', icon: ScrollText, label: 'Logs' },

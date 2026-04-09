@@ -14,8 +14,7 @@ import { MarkAttendancePage } from '../pages/supervisor/MarkAttendancePage'
 import { SessionHistoryPage } from '../pages/supervisor/SessionHistoryPage'
 
 import { AdminDashboard } from '../pages/admin/AdminDashboard'
-import { ManageUsersPage } from '../pages/admin/ManageUsersPage'
-import { ManageSessionsPage } from '../pages/admin/ManageSessionsPage'
+import { AdminManagePage } from '../pages/admin/AdminManagePage'
 import { AttendanceReportsPage } from '../pages/admin/AttendanceReportsPage'
 
 import { SkillsPlaceholderPage } from '../pages/skills/SkillsPlaceholderPage'
@@ -66,11 +65,9 @@ export function AppRouter() {
 
         {/* Admin */}
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><ManageUsersPage /></ProtectedRoute>} />
-        <Route path="/admin/sessions" element={<ProtectedRoute allowedRoles={['admin']}><ManageSessionsPage /></ProtectedRoute>} />
+        <Route path="/admin/manage" element={<ProtectedRoute allowedRoles={['admin']}><AdminManagePage /></ProtectedRoute>} />
         <Route path="/admin/calendar" element={<ProtectedRoute allowedRoles={['admin']}><CalendarPage /></ProtectedRoute>} />
         <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AttendanceReportsPage /></ProtectedRoute>} />
-        <Route path="/admin/skills" element={<ProtectedRoute allowedRoles={['admin']}><SkillsPlaceholderPage /></ProtectedRoute>} />
         <Route path="/admin/logs" element={<ProtectedRoute allowedRoles={['admin']}><AssignmentLogPage /></ProtectedRoute>} />
 
         {/* Fallback */}
