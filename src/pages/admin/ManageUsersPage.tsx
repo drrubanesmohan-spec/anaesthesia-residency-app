@@ -3,7 +3,7 @@ import { AppShell } from '../../components/layout/AppShell'
 import { Spinner } from '../../components/ui/Spinner'
 import { supabase } from '../../lib/supabaseClient'
 import type { UserRole } from '../../types/auth'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'
 
 interface Profile {
   id: string
@@ -21,6 +21,7 @@ export function ManageUsersPage() {
   const [users, setUsers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [collapsed, setCollapsed] = useState<Record<UserRole, boolean>>({ admin: false, supervisor: false, resident: false })
+  const [promoting, setPromoting] = useState<string | null>(null)
 
   useEffect(() => {
     supabase
@@ -35,6 +36,13 @@ export function ManageUsersPage() {
 
   function toggle(role: UserRole) {
     setCollapsed(prev => ({ ...prev, [role]: !prev[role] }))
+  }
+
+  async function changeRole(userId: string, newRole: 'admin' | 'supervisor') {
+    setPromoting(userId)
+    await supabase.from('profiles').update({ role: newRole }).eq('id', userId)
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
+    setPromoting(null)
   }
 
   return (
@@ -74,7 +82,27 @@ export function ManageUsersPage() {
                           className={`flex items-center px-4 py-2.5 ${i !== group.length - 1 ? 'border-b border-slate-700/50' : ''}`}
                         >
                           <span className="text-xs text-slate-500 w-6 shrink-0">{i + 1}</span>
-                          <span className="text-sm text-white">{u.full_name}</span>
+                          <span className="text-sm text-white flex-1">{u.full_name}</span>
+                          {role === 'supervisor' && (
+                            <button
+                              onClick={() => changeRole(u.id, 'admin')}
+                              disabled={promoting === u.id}
+                              title="Promote to Admin"
+                              className="ml-2 text-amber-400 hover:text-amber-300 disabled:opacity-40 transition-colors"
+                            >
+                              <ArrowUpCircle size={18} />
+                            </button>
+                          )}
+                          {role === 'admin' && (
+                            <button
+                              onClick={() => changeRole(u.id, 'supervisor')}
+                              disabled={promoting === u.id}
+                              title="Demote to Supervisor"
+                              className="ml-2 text-purple-400 hover:text-purple-300 disabled:opacity-40 transition-colors"
+                            >
+                              <ArrowDownCircle size={18} />
+                            </button>
+                          )}
                         </div>
                       ))
                     )}
