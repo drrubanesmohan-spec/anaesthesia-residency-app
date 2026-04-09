@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { ChevronLeft, ChevronRight, Plus, Trash2, X } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Spinner } from '../../components/ui/Spinner'
@@ -15,14 +15,35 @@ interface CalendarEvent {
 }
 
 const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+const SS_YEAR     = 'cal_year'
+const SS_MONTH    = 'cal_month'
+const SS_SELECTED = 'cal_selected'
+const SS_EVENTS   = 'cal_events_'   // + "YYYY-MM" key
+const SS_DRAFT_T  = 'cal_draft_title'
+const SS_DRAFT_D  = 'cal_draft_desc'
+const SS_MODAL    = 'cal_modal_open'
+
+function ss(key: string): string | null {
+  try { return sessionStorage.getItem(key) } catch { return null }
+}
+function ssSet(key: string, val: string) {
+  try { sessionStorage.setItem(key, val) } catch { /* quota */ }
+}
+function ssRemove(key: string) {
+  try { sessionStorage.removeItem(key) } catch { /* */ }
+}
 
 function isoDate(y: number, m: number, d: number) {
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 }
-
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
 }
+function monthKey(y: number, m: number) {
+  return `${y}-${String(m + 1).padStart(2, '0')}`
+}
+
+/* ─── Add event modal — persists draft across window switches ─────── */
 
 function AddEventModal({
   date,
@@ -34,10 +55,14 @@ function AddEventModal({
   onSaved: (event: CalendarEvent) => void
 }) {
   const { appUser } = useAuth()
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [title, setTitle]       = useState(() => ss(SS_DRAFT_T) ?? '')
+  const [description, setDesc]  = useState(() => ss(SS_DRAFT_D) ?? '')
+  const [saving, setSaving]     = useState(false)
+  const [error, setError]       = useState('')
+
+  // Persist draft on every keystroke
+  function handleTitle(v: string)  { setTitle(v);  ssSet(SS_DRAFT_T, v) }
+  function handleDesc(v: string)   { setDesc(v);   ssSet(SS_DRAFT_D, v) }
 
   const label = new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
@@ -52,7 +77,14 @@ function AddEventModal({
       .select()
       .single()
     if (err) { setError(err.message); setSaving(false); return }
+    // Clear persisted draft on success
+    ssRemove(SS_DRAFT_T); ssRemove(SS_DRAFT_D); ssRemove(SS_MODAL)
     onSaved(data as CalendarEvent)
+    onClose()
+  }
+
+  function handleClose() {
+    ssRemove(SS_MODAL)
     onClose()
   }
 
@@ -61,7 +93,7 @@ function AddEventModal({
       <div className="w-full max-w-lg rounded-t-3xl bg-[#1e293b] p-5 pb-10 animate-in slide-in-from-bottom-4">
         <div className="flex items-center justify-between mb-4">
           <span className="text-xs text-slate-400">{label}</span>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <button onClick={handleClose} className="text-slate-400 hover:text-white transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -71,13 +103,14 @@ function AddEventModal({
             autoFocus
             placeholder="Title"
             value={title}
-            onChange={e => setTitle(e.target.value)}
+            onChange={e => handleTitle(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && submit()}
             className="w-full rounded-xl bg-slate-700/60 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-blue-500"
           />
           <textarea
             placeholder="Notes (optional)"
             value={description}
-            onChange={e => setDescription(e.target.value)}
+            onChange={e => handleDesc(e.target.value)}
             rows={3}
             className="w-full rounded-xl bg-slate-700/60 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-blue-500 resize-none"
           />
@@ -95,67 +128,98 @@ function AddEventModal({
   )
 }
 
+/* ─── Calendar page ──────────────────────────────────────────────── */
+
 export function CalendarPage() {
   const { appUser } = useAuth()
   const canEdit = appUser?.role === 'admin' || appUser?.role === 'supervisor'
 
   const now = new Date()
-  const [year, setYear] = useState(now.getFullYear())
-  const [month, setMonth] = useState(now.getMonth())
-  const [selected, setSelected] = useState(todayStr())
-  const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
+
+  // Restore from sessionStorage on mount
+  const [year,     setYearRaw]     = useState<number>(() => parseInt(ss(SS_YEAR)  ?? String(now.getFullYear())))
+  const [month,    setMonthRaw]    = useState<number>(() => parseInt(ss(SS_MONTH) ?? String(now.getMonth())))
+  const [selected, setSelectedRaw] = useState<string>(() => ss(SS_SELECTED) ?? todayStr())
+  const [events,   setEvents]      = useState<CalendarEvent[]>(() => {
+    const cached = ss(SS_EVENTS + monthKey(
+      parseInt(ss(SS_YEAR) ?? String(now.getFullYear())),
+      parseInt(ss(SS_MONTH) ?? String(now.getMonth()))
+    ))
+    return cached ? (JSON.parse(cached) as CalendarEvent[]) : []
+  })
+  const [loading,  setLoading]  = useState(events.length === 0) // skip spinner if we have cache
+  const [showModal, setShowModal] = useState(() => ss(SS_MODAL) === '1')
   const [deleting, setDeleting] = useState<string | null>(null)
 
+  // Persist state helpers
+  function setYear(y: number)     { setYearRaw(y);  ssSet(SS_YEAR, String(y)) }
+  function setMonth(m: number)    { setMonthRaw(m); ssSet(SS_MONTH, String(m)) }
+  function setSelected(d: string) { setSelectedRaw(d); ssSet(SS_SELECTED, d) }
+
+  function openModal()  { ssSet(SS_MODAL, '1'); setShowModal(true) }
+  function closeModal() { ssRemove(SS_MODAL);   setShowModal(false) }
+
+  // Load events for current month (background-refresh even if cached)
+  const isFetching = useRef(false)
   const loadMonth = useCallback(async () => {
-    setLoading(true)
+    if (isFetching.current) return
+    isFetching.current = true
     const firstDay = isoDate(year, month, 1)
-    const lastDay = isoDate(year, month, new Date(year, month + 1, 0).getDate())
+    const lastDay  = isoDate(year, month, new Date(year, month + 1, 0).getDate())
     const { data } = await supabase
       .from('calendar_events')
       .select('id, title, date, description, created_by')
       .gte('date', firstDay)
       .lte('date', lastDay)
       .order('date')
-    setEvents((data ?? []) as CalendarEvent[])
+    const fresh = (data ?? []) as CalendarEvent[]
+    setEvents(fresh)
+    ssSet(SS_EVENTS + monthKey(year, month), JSON.stringify(fresh))
     setLoading(false)
+    isFetching.current = false
   }, [year, month])
 
   useEffect(() => { loadMonth() }, [loadMonth])
 
-  // Days that have events this month
-  const eventDates = new Set(events.map(e => e.date))
+  // Refresh events when returning to the tab/window
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible') loadMonth()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [loadMonth])
 
-  // Events for selected day
+  const eventDates    = new Set(events.map(e => e.date))
   const selectedEvents = events.filter(e => e.date === selected)
 
   async function deleteEvent(id: string) {
     setDeleting(id)
     await supabase.from('calendar_events').delete().eq('id', id)
-    setEvents(prev => prev.filter(e => e.id !== id))
+    const updated = events.filter(e => e.id !== id)
+    setEvents(updated)
+    ssSet(SS_EVENTS + monthKey(year, month), JSON.stringify(updated))
     setDeleting(null)
   }
 
-  // Calendar grid
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const firstDow = new Date(year, month, 1).getDay()
-  const totalCells = Math.ceil((firstDow + daysInMonth) / 7) * 7
-  const today = todayStr()
+  const firstDow    = new Date(year, month, 1).getDay()
+  const totalCells  = Math.ceil((firstDow + daysInMonth) / 7) * 7
+  const today       = todayStr()
 
   function prevMonth() {
-    if (month === 0) { setYear(y => y - 1); setMonth(11) }
-    else setMonth(m => m - 1)
+    if (month === 0) { setYear(year - 1); setMonth(11) }
+    else setMonth(month - 1)
   }
   function nextMonth() {
-    if (month === 11) { setYear(y => y + 1); setMonth(0) }
-    else setMonth(m => m + 1)
+    if (month === 11) { setYear(year + 1); setMonth(0) }
+    else setMonth(month + 1)
   }
 
-  const monthLabel = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-  const selectedLabel = new Date(selected + 'T00:00:00').toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric',
-  })
+  const monthLabel = new Date(year, month, 1)
+    .toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const selectedLabel = new Date(selected + 'T00:00:00')
+    .toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
   return (
     <AppShell title="Calendar">
@@ -163,7 +227,6 @@ export function CalendarPage() {
 
         {/* Month grid */}
         <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden">
-          {/* Month header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">
             <button onClick={prevMonth} className="p-1.5 rounded-full hover:bg-slate-700/50 transition-colors text-slate-300">
               <ChevronLeft size={18} />
@@ -193,33 +256,26 @@ export function CalendarPage() {
             {Array.from({ length: totalCells }).map((_, idx) => {
               const dayNum = idx - firstDow + 1
               if (dayNum < 1 || dayNum > daysInMonth) return <div key={idx} className="h-10" />
-
-              const dateStr = isoDate(year, month, dayNum)
-              const isToday = dateStr === today
-              const isSelected = dateStr === selected
-              const hasEvent = eventDates.has(dateStr)
-
+              const dateStr   = isoDate(year, month, dayNum)
+              const isToday   = dateStr === today
+              const isSel     = dateStr === selected
+              const hasEvent  = eventDates.has(dateStr)
               return (
                 <div key={idx} className="flex flex-col items-center py-0.5">
                   <button
                     onClick={() => setSelected(dateStr)}
                     className={cn(
                       'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors',
-                      isSelected
-                        ? 'bg-blue-500 text-white'
-                        : isToday
-                        ? 'ring-1 ring-blue-400 text-blue-300'
-                        : 'text-slate-300 hover:bg-slate-700/50'
+                      isSel   ? 'bg-blue-500 text-white'
+                      : isToday ? 'ring-1 ring-blue-400 text-blue-300'
+                      : 'text-slate-300 hover:bg-slate-700/50'
                     )}
                   >
                     {dayNum}
                   </button>
                   <div className="h-1.5 flex items-center justify-center mt-0.5">
                     {hasEvent && (
-                      <span className={cn(
-                        'w-1.5 h-1.5 rounded-full',
-                        isSelected ? 'bg-white' : 'bg-blue-400'
-                      )} />
+                      <span className={cn('w-1.5 h-1.5 rounded-full', isSel ? 'bg-white' : 'bg-blue-400')} />
                     )}
                   </div>
                 </div>
@@ -234,7 +290,7 @@ export function CalendarPage() {
             <span className="text-xs font-semibold text-slate-300">{selectedLabel}</span>
             {canEdit && (
               <button
-                onClick={() => setShowModal(true)}
+                onClick={openModal}
                 className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors"
               >
                 <Plus size={14} />
@@ -282,8 +338,12 @@ export function CalendarPage() {
       {showModal && (
         <AddEventModal
           date={selected}
-          onClose={() => setShowModal(false)}
-          onSaved={ev => setEvents(prev => [...prev, ev].sort((a, b) => a.date.localeCompare(b.date)))}
+          onClose={closeModal}
+          onSaved={ev => {
+            const updated = [...events, ev].sort((a, b) => a.date.localeCompare(b.date))
+            setEvents(updated)
+            ssSet(SS_EVENTS + monthKey(year, month), JSON.stringify(updated))
+          }}
         />
       )}
     </AppShell>
