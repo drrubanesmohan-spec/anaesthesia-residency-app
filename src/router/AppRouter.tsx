@@ -20,6 +20,8 @@ import { AttendanceReportsPage } from '../pages/admin/AttendanceReportsPage'
 import { SkillsPlaceholderPage } from '../pages/skills/SkillsPlaceholderPage'
 import { AssignmentLogPage } from '../pages/shared/AssignmentLogPage'
 import { CalendarPage } from '../pages/shared/CalendarPage'
+import { TasksPage } from '../pages/shared/TasksPage'
+import { AspiriantsPage } from '../pages/admin/AspiriantsPage'
 
 function RoleRedirect() {
   const { appUser, loading, session } = useAuth()
@@ -53,6 +55,7 @@ export function AppRouter() {
         <Route path="/resident" element={<ProtectedRoute allowedRoles={['resident']}><ResidentDashboard /></ProtectedRoute>} />
         <Route path="/resident/attendance" element={<ProtectedRoute allowedRoles={['resident']}><MyAttendancePage /></ProtectedRoute>} />
         <Route path="/resident/calendar" element={<ProtectedRoute allowedRoles={['resident']}><CalendarPage /></ProtectedRoute>} />
+        <Route path="/resident/tasks" element={<ProtectedRoute allowedRoles={['resident']}><TasksPage /></ProtectedRoute>} />
         <Route path="/resident/skills" element={<ProtectedRoute allowedRoles={['resident']}><SkillsPlaceholderPage /></ProtectedRoute>} />
 
         {/* Supervisor */}
@@ -60,13 +63,15 @@ export function AppRouter() {
         <Route path="/supervisor/sessions" element={<ProtectedRoute allowedRoles={['supervisor']}><SessionHistoryPage /></ProtectedRoute>} />
         <Route path="/supervisor/session/:sessionId/mark" element={<ProtectedRoute allowedRoles={['supervisor']}><MarkAttendancePage /></ProtectedRoute>} />
         <Route path="/supervisor/calendar" element={<ProtectedRoute allowedRoles={['supervisor']}><CalendarPage /></ProtectedRoute>} />
-        <Route path="/supervisor/skills" element={<ProtectedRoute allowedRoles={['supervisor']}><SkillsPlaceholderPage /></ProtectedRoute>} />
+        <Route path="/supervisor/tasks" element={<ProtectedRoute allowedRoles={['supervisor']}><TasksPage /></ProtectedRoute>} />
         <Route path="/supervisor/logs" element={<ProtectedRoute allowedRoles={['supervisor']}><AssignmentLogPage /></ProtectedRoute>} />
 
         {/* Admin */}
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/manage" element={<ProtectedRoute allowedRoles={['admin']}><AdminManagePage /></ProtectedRoute>} />
         <Route path="/admin/calendar" element={<ProtectedRoute allowedRoles={['admin']}><CalendarPage /></ProtectedRoute>} />
+        <Route path="/admin/tasks" element={<ProtectedRoute allowedRoles={['admin']}><TasksPage /></ProtectedRoute>} />
+        <Route path="/admin/aspirants" element={<ProtectedRoute allowedRoles={['admin']}><AspiriantsPage /></ProtectedRoute>} />
         <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AttendanceReportsPage /></ProtectedRoute>} />
         <Route path="/admin/logs" element={<ProtectedRoute allowedRoles={['admin']}><AssignmentLogPage /></ProtectedRoute>} />
 

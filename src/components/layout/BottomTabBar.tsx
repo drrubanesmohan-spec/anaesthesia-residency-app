@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Calendar, Stethoscope, Users, BarChart2, ScrollText, LayoutGrid } from 'lucide-react'
+import { Home, Calendar, Stethoscope, Users, BarChart2, ScrollText, LayoutGrid, CheckSquare, UserSearch } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 
@@ -7,6 +7,7 @@ const residentTabs = [
   { to: '/resident', icon: Home, label: 'Home', end: true },
   { to: '/resident/attendance', icon: Calendar, label: 'Attendance' },
   { to: '/resident/calendar', icon: Calendar, label: 'Calendar' },
+  { to: '/resident/tasks', icon: CheckSquare, label: 'Tasks' },
   { to: '/resident/skills', icon: Stethoscope, label: 'Skills' },
 ]
 
@@ -14,14 +15,16 @@ const supervisorTabs = [
   { to: '/supervisor', icon: Home, label: 'Home', end: true },
   { to: '/supervisor/sessions', icon: Users, label: 'Residents' },
   { to: '/supervisor/calendar', icon: Calendar, label: 'Calendar' },
+  { to: '/supervisor/tasks', icon: CheckSquare, label: 'Tasks' },
   { to: '/supervisor/logs', icon: ScrollText, label: 'Logs' },
-  { to: '/supervisor/skills', icon: Stethoscope, label: 'Skills' },
 ]
 
 const adminTabs = [
   { to: '/admin', icon: Home, label: 'Dashboard', end: true },
   { to: '/admin/manage', icon: LayoutGrid, label: 'Manage' },
   { to: '/admin/calendar', icon: Calendar, label: 'Calendar' },
+  { to: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
+  { to: '/admin/aspirants', icon: UserSearch, label: 'Aspirants' },
   { to: '/admin/reports', icon: BarChart2, label: 'Reports' },
   { to: '/admin/logs', icon: ScrollText, label: 'Logs' },
 ]
