@@ -11,7 +11,7 @@ const residentTabs = [
 
 const supervisorTabs = [
   { to: '/supervisor', icon: Home, label: 'Home', end: true },
-  { to: '/supervisor/sessions', icon: Calendar, label: 'Hospital' },
+  { to: '/supervisor/sessions', icon: Users, label: 'Residents' },
   { to: '/supervisor/logs', icon: ScrollText, label: 'Logs' },
   { to: '/supervisor/skills', icon: Stethoscope, label: 'Skills' },
 ]
