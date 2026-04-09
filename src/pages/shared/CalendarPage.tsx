@@ -139,15 +139,8 @@ function AddEventModal({
                 value={endDate}
                 min={date}
                 onChange={e => handleEndDate(e.target.value)}
-                className="bg-transparent text-xs text-blue-400 outline-none cursor-pointer w-[1px] opacity-0 absolute"
-                id="end-date-input"
+                className="text-xs text-blue-400 font-medium bg-transparent outline-none cursor-pointer"
               />
-              <label
-                htmlFor="end-date-input"
-                className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer font-medium"
-              >
-                Change
-              </label>
             </div>
           </div>
 
