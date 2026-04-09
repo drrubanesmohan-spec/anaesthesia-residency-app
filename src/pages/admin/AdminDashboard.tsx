@@ -7,47 +7,65 @@ import { useAuth } from '../../context/AuthContext'
 interface Stats {
   residents: number
   supervisors: number
-  sessions: number
-  attendance: number
+  present: number
+  absent: number
 }
 
 export function AdminDashboard() {
   const { appUser } = useAuth()
-  const [stats, setStats] = useState<Stats>({ residents: 0, supervisors: 0, sessions: 0, attendance: 0 })
+  const today = new Date().toISOString().slice(0, 10)
+  const [stats, setStats] = useState<Stats | null>(null)
 
   useEffect(() => {
     Promise.all([
-      supabase.from('profiles').select('id', { count: 'exact' }).eq('role', 'resident'),
-      supabase.from('profiles').select('id', { count: 'exact' }).eq('role', 'supervisor'),
-      supabase.from('sessions').select('id', { count: 'exact' }),
-      supabase.from('attendance').select('id', { count: 'exact' }).eq('status', 'present'),
-    ]).then(([r, sv, s, a]) => {
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'resident'),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'supervisor'),
+      supabase.from('daily_attendance').select('id', { count: 'exact', head: true }).eq('date', today).eq('status', 'present'),
+      supabase.from('daily_attendance').select('id', { count: 'exact', head: true }).eq('date', today).eq('status', 'absent'),
+    ]).then(([r, sv, present, absent]) => {
       setStats({
-        residents: r.count ?? 0,
-        supervisors: sv.count ?? 0,
-        sessions: s.count ?? 0,
-        attendance: a.count ?? 0,
+        residents:   r.count       ?? 0,
+        supervisors: sv.count      ?? 0,
+        present:     present.count ?? 0,
+        absent:      absent.count  ?? 0,
       })
     })
-  }, [])
+  }, [today])
+
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   return (
-    <AppShell title="Admin Dashboard" showLogout>
+    <AppShell title="Dashboard" showLogout>
       <div className="space-y-4">
-        <p className="text-sm text-slate-400">Welcome, {appUser?.fullName}</p>
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { label: 'Residents', value: stats.residents, color: 'text-sky-400' },
-            { label: 'Supervisors', value: stats.supervisors, color: 'text-purple-400' },
-            { label: 'Hospital sessions', value: stats.sessions, color: 'text-amber-400' },
-            { label: 'Present records', value: stats.attendance, color: 'text-emerald-400' },
-          ].map(({ label, value, color }) => (
-            <Card key={label} className="text-center">
-              <p className={`text-3xl font-bold ${color}`}>{value}</p>
-              <p className="text-xs text-slate-500 mt-1">{label}</p>
-            </Card>
-          ))}
+        {/* Greeting */}
+        <div className="rounded-2xl border border-slate-700 bg-brand-light px-5 py-4">
+          <p className="text-xs text-slate-500 mb-1">{greeting}</p>
+          <p className="text-lg font-semibold text-white">{appUser?.fullName ?? ''}</p>
         </div>
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 gap-3">
+          <Card className="text-center">
+            <p className="text-3xl font-bold text-sky-400">{stats?.residents ?? '—'}</p>
+            <p className="text-xs text-slate-500 mt-1">Residents</p>
+          </Card>
+          <Card className="text-center">
+            <p className="text-3xl font-bold text-purple-400">{stats?.supervisors ?? '—'}</p>
+            <p className="text-xs text-slate-500 mt-1">Supervisors</p>
+          </Card>
+          <Card className="text-center">
+            <p className="text-3xl font-bold text-emerald-400">{stats?.present ?? '—'}</p>
+            <p className="text-xs text-slate-500 mt-1">Present today</p>
+          </Card>
+          <Card className="text-center">
+            <p className="text-3xl font-bold text-red-400">{stats?.absent ?? '—'}</p>
+            <p className="text-xs text-slate-500 mt-1">Absent today</p>
+          </Card>
+        </div>
+
+        {/* Today's date */}
+        <p className="text-center text-xs text-slate-600">{today}</p>
       </div>
     </AppShell>
   )
