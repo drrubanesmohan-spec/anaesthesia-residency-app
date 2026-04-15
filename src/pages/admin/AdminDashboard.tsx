@@ -3,6 +3,7 @@ import { AppShell } from '../../components/layout/AppShell'
 import { Card } from '../../components/ui/Card'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../context/AuthContext'
+import { cacheFetch } from '../../lib/cache'
 
 interface Stats {
   residents: number
@@ -17,19 +18,20 @@ export function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
 
   useEffect(() => {
-    Promise.all([
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'resident'),
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'supervisor'),
-      supabase.from('daily_attendance').select('id', { count: 'exact', head: true }).eq('date', today).eq('status', 'present'),
-      supabase.from('daily_attendance').select('id', { count: 'exact', head: true }).eq('date', today).eq('status', 'absent'),
-    ]).then(([r, sv, present, absent]) => {
-      setStats({
+    cacheFetch(`admin-dashboard-${today}`, async () => {
+      const [r, sv, present, absent] = await Promise.all([
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'resident'),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'supervisor'),
+        supabase.from('daily_attendance').select('id', { count: 'exact', head: true }).eq('date', today).eq('status', 'present'),
+        supabase.from('daily_attendance').select('id', { count: 'exact', head: true }).eq('date', today).eq('status', 'absent'),
+      ])
+      return {
         residents:   r.count       ?? 0,
         supervisors: sv.count      ?? 0,
         present:     present.count ?? 0,
         absent:      absent.count  ?? 0,
-      })
-    })
+      }
+    }).then(setStats)
   }, [today])
 
   const hour = new Date().getHours()
