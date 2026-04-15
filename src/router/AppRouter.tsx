@@ -1,83 +1,90 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ProtectedRoute } from '../components/layout/ProtectedRoute'
 import { Spinner } from '../components/ui/Spinner'
 
+// Eagerly loaded (always needed at startup)
 import { LoginPage } from '../pages/auth/LoginPage'
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage'
 
-import { ResidentDashboard } from '../pages/resident/ResidentDashboard'
-import { MyAttendancePage } from '../pages/resident/MyAttendancePage'
+// Lazy-loaded — each becomes its own JS chunk, only downloaded when visited
+const ResidentDashboard     = lazy(() => import('../pages/resident/ResidentDashboard').then(m => ({ default: m.ResidentDashboard })))
+const MyAttendancePage      = lazy(() => import('../pages/resident/MyAttendancePage').then(m => ({ default: m.MyAttendancePage })))
 
-import { SupervisorHome } from '../pages/supervisor/SupervisorHome'
-import { MarkAttendancePage } from '../pages/supervisor/MarkAttendancePage'
-import { SessionHistoryPage } from '../pages/supervisor/SessionHistoryPage'
+const SupervisorHome        = lazy(() => import('../pages/supervisor/SupervisorHome').then(m => ({ default: m.SupervisorHome })))
+const SessionHistoryPage    = lazy(() => import('../pages/supervisor/SessionHistoryPage').then(m => ({ default: m.SessionHistoryPage })))
+const MarkAttendancePage    = lazy(() => import('../pages/supervisor/MarkAttendancePage').then(m => ({ default: m.MarkAttendancePage })))
 
-import { AdminDashboard } from '../pages/admin/AdminDashboard'
-import { AdminManagePage } from '../pages/admin/AdminManagePage'
-import { AttendanceReportsPage } from '../pages/admin/AttendanceReportsPage'
+const AdminDashboard        = lazy(() => import('../pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
+const AdminManagePage       = lazy(() => import('../pages/admin/AdminManagePage').then(m => ({ default: m.AdminManagePage })))
+const AttendanceReportsPage = lazy(() => import('../pages/admin/AttendanceReportsPage').then(m => ({ default: m.AttendanceReportsPage })))
+const AspiriantsPage        = lazy(() => import('../pages/admin/AspiriantsPage').then(m => ({ default: m.AspiriantsPage })))
 
-import { SkillsPlaceholderPage } from '../pages/skills/SkillsPlaceholderPage'
-import { AssignmentLogPage } from '../pages/shared/AssignmentLogPage'
-import { CalendarPage } from '../pages/shared/CalendarPage'
-import { TasksPage } from '../pages/shared/TasksPage'
-import { AspiriantsPage } from '../pages/admin/AspiriantsPage'
+const SkillsPlaceholderPage = lazy(() => import('../pages/skills/SkillsPlaceholderPage').then(m => ({ default: m.SkillsPlaceholderPage })))
+const AssignmentLogPage     = lazy(() => import('../pages/shared/AssignmentLogPage').then(m => ({ default: m.AssignmentLogPage })))
+const CalendarPage          = lazy(() => import('../pages/shared/CalendarPage').then(m => ({ default: m.CalendarPage })))
+const TasksPage             = lazy(() => import('../pages/shared/TasksPage').then(m => ({ default: m.TasksPage })))
+
+function PageLoader() {
+  return (
+    <div className="flex h-screen items-center justify-center bg-brand">
+      <Spinner className="h-8 w-8" />
+    </div>
+  )
+}
 
 function RoleRedirect() {
   const { appUser, loading, session } = useAuth()
 
-  if (loading || (session && !appUser)) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-brand">
-        <Spinner className="h-10 w-10" />
-      </div>
-    )
-  }
-
+  if (loading || (session && !appUser)) return <PageLoader />
   if (!appUser) return <Navigate to="/login" replace />
   if (appUser.role === 'admin') return <Navigate to="/admin" replace />
   if (appUser.role === 'supervisor') return <Navigate to="/supervisor" replace />
   return <Navigate to="/resident" replace />
 }
 
+function R({ roles, children }: { roles: string[]; children: React.ReactNode }) {
+  return <ProtectedRoute allowedRoles={roles as never}>{children}</ProtectedRoute>
+}
+
 export function AppRouter() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Public */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Public */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/" element={<RoleRedirect />} />
 
-        {/* Root redirect */}
-        <Route path="/" element={<RoleRedirect />} />
+          {/* Resident */}
+          <Route path="/resident"            element={<R roles={['resident']}><ResidentDashboard /></R>} />
+          <Route path="/resident/attendance" element={<R roles={['resident']}><MyAttendancePage /></R>} />
+          <Route path="/resident/calendar"   element={<R roles={['resident']}><CalendarPage /></R>} />
+          <Route path="/resident/tasks"      element={<R roles={['resident']}><TasksPage /></R>} />
+          <Route path="/resident/skills"     element={<R roles={['resident']}><SkillsPlaceholderPage /></R>} />
 
-        {/* Resident */}
-        <Route path="/resident" element={<ProtectedRoute allowedRoles={['resident']}><ResidentDashboard /></ProtectedRoute>} />
-        <Route path="/resident/attendance" element={<ProtectedRoute allowedRoles={['resident']}><MyAttendancePage /></ProtectedRoute>} />
-        <Route path="/resident/calendar" element={<ProtectedRoute allowedRoles={['resident']}><CalendarPage /></ProtectedRoute>} />
-        <Route path="/resident/tasks" element={<ProtectedRoute allowedRoles={['resident']}><TasksPage /></ProtectedRoute>} />
-        <Route path="/resident/skills" element={<ProtectedRoute allowedRoles={['resident']}><SkillsPlaceholderPage /></ProtectedRoute>} />
+          {/* Supervisor */}
+          <Route path="/supervisor"                        element={<R roles={['supervisor']}><SupervisorHome /></R>} />
+          <Route path="/supervisor/sessions"               element={<R roles={['supervisor']}><SessionHistoryPage /></R>} />
+          <Route path="/supervisor/session/:sessionId/mark" element={<R roles={['supervisor']}><MarkAttendancePage /></R>} />
+          <Route path="/supervisor/calendar"               element={<R roles={['supervisor']}><CalendarPage /></R>} />
+          <Route path="/supervisor/tasks"                  element={<R roles={['supervisor']}><TasksPage /></R>} />
+          <Route path="/supervisor/logs"                   element={<R roles={['supervisor']}><AssignmentLogPage /></R>} />
 
-        {/* Supervisor */}
-        <Route path="/supervisor" element={<ProtectedRoute allowedRoles={['supervisor']}><SupervisorHome /></ProtectedRoute>} />
-        <Route path="/supervisor/sessions" element={<ProtectedRoute allowedRoles={['supervisor']}><SessionHistoryPage /></ProtectedRoute>} />
-        <Route path="/supervisor/session/:sessionId/mark" element={<ProtectedRoute allowedRoles={['supervisor']}><MarkAttendancePage /></ProtectedRoute>} />
-        <Route path="/supervisor/calendar" element={<ProtectedRoute allowedRoles={['supervisor']}><CalendarPage /></ProtectedRoute>} />
-        <Route path="/supervisor/tasks" element={<ProtectedRoute allowedRoles={['supervisor']}><TasksPage /></ProtectedRoute>} />
-        <Route path="/supervisor/logs" element={<ProtectedRoute allowedRoles={['supervisor']}><AssignmentLogPage /></ProtectedRoute>} />
+          {/* Admin */}
+          <Route path="/admin"            element={<R roles={['admin']}><AdminDashboard /></R>} />
+          <Route path="/admin/manage"     element={<R roles={['admin']}><AdminManagePage /></R>} />
+          <Route path="/admin/calendar"   element={<R roles={['admin']}><CalendarPage /></R>} />
+          <Route path="/admin/tasks"      element={<R roles={['admin']}><TasksPage /></R>} />
+          <Route path="/admin/aspirants"  element={<R roles={['admin']}><AspiriantsPage /></R>} />
+          <Route path="/admin/reports"    element={<R roles={['admin']}><AttendanceReportsPage /></R>} />
+          <Route path="/admin/logs"       element={<R roles={['admin']}><AssignmentLogPage /></R>} />
 
-        {/* Admin */}
-        <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/admin/manage" element={<ProtectedRoute allowedRoles={['admin']}><AdminManagePage /></ProtectedRoute>} />
-        <Route path="/admin/calendar" element={<ProtectedRoute allowedRoles={['admin']}><CalendarPage /></ProtectedRoute>} />
-        <Route path="/admin/tasks" element={<ProtectedRoute allowedRoles={['admin']}><TasksPage /></ProtectedRoute>} />
-        <Route path="/admin/aspirants" element={<ProtectedRoute allowedRoles={['admin']}><AspiriantsPage /></ProtectedRoute>} />
-        <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AttendanceReportsPage /></ProtectedRoute>} />
-        <Route path="/admin/logs" element={<ProtectedRoute allowedRoles={['admin']}><AssignmentLogPage /></ProtectedRoute>} />
-
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }

@@ -23,43 +23,37 @@ export function SupervisorHome() {
   useEffect(() => {
     if (!appUser) return
 
-    // Fetch supervisor's department info
     supabase
       .from('supervisor_assignments')
       .select('hospital_id, department_id, hospitals:hospital_id(name), hospital_departments:department_id(name)')
       .eq('supervisor_id', appUser.id)
       .single()
-      .then(({ data }) => {
-        if (data) {
-          const h = (data as unknown as { hospitals: { name: string }; hospital_departments: { name: string } })
-          setDeptInfo({
-            hospital_name: h.hospitals?.name ?? '',
-            dept_name: h.hospital_departments?.name ?? '',
-          })
-        }
-      })
+      .then(async ({ data }) => {
+        if (!data) return
 
-    // Fetch today's attendance summary for this supervisor's department
-    supabase
-      .from('supervisor_assignments')
-      .select('department_id')
-      .eq('supervisor_id', appUser.id)
-      .single()
-      .then(async ({ data: sa }) => {
-        if (!sa?.department_id) return
-        const { data: residents } = await supabase
-          .from('resident_assignments')
-          .select('resident_id')
-          .eq('department_id', sa.department_id)
+        const h = data as unknown as { hospitals: { name: string }; hospital_departments: { name: string }; department_id: string }
+        setDeptInfo({
+          hospital_name: h.hospitals?.name ?? '',
+          dept_name: h.hospital_departments?.name ?? '',
+        })
+
+        if (!h.department_id) return
+
+        // Fetch residents + attendance in parallel
+        const [{ data: residents }, ] = await Promise.all([
+          supabase.from('resident_assignments').select('resident_id').eq('department_id', h.department_id),
+        ])
         if (!residents || residents.length === 0) return
-        const ids = residents.map(r => r.resident_id)
+        const ids = residents.map((r: { resident_id: string }) => r.resident_id)
+
         const { data: att } = await supabase
           .from('daily_attendance')
           .select('status')
           .eq('date', today)
           .in('resident_id', ids)
-        const present = (att ?? []).filter(a => a.status === 'present').length
-        const absent = (att ?? []).filter(a => a.status === 'absent').length
+
+        const present = (att ?? []).filter((a: { status: string }) => a.status === 'present').length
+        const absent  = (att ?? []).filter((a: { status: string }) => a.status === 'absent').length
         setSummary({ present, absent, total: ids.length })
       })
   }, [appUser, today])
