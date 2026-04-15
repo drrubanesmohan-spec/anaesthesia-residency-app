@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Calendar, Stethoscope, Users, BarChart2, ScrollText, LayoutGrid, CheckSquare, UserSearch } from 'lucide-react'
+import { Home, Calendar, Stethoscope, Users, ScrollText, LayoutGrid, CheckSquare, UserSearch } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 
@@ -25,7 +25,6 @@ const adminTabs = [
   { to: '/admin/calendar', icon: Calendar, label: 'Calendar' },
   { to: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
   { to: '/admin/aspirants', icon: UserSearch, label: 'Aspirants' },
-  { to: '/admin/reports', icon: BarChart2, label: 'Reports' },
   { to: '/admin/logs', icon: ScrollText, label: 'Logs' },
 ]
 

@@ -18,7 +18,6 @@ const MarkAttendancePage    = lazy(() => import('../pages/supervisor/MarkAttenda
 
 const AdminDashboard        = lazy(() => import('../pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
 const AdminManagePage       = lazy(() => import('../pages/admin/AdminManagePage').then(m => ({ default: m.AdminManagePage })))
-const AttendanceReportsPage = lazy(() => import('../pages/admin/AttendanceReportsPage').then(m => ({ default: m.AttendanceReportsPage })))
 const AspiriantsPage        = lazy(() => import('../pages/admin/AspiriantsPage').then(m => ({ default: m.AspiriantsPage })))
 
 const SkillsPlaceholderPage = lazy(() => import('../pages/skills/SkillsPlaceholderPage').then(m => ({ default: m.SkillsPlaceholderPage })))
@@ -79,7 +78,6 @@ export function AppRouter() {
           <Route path="/admin/calendar"   element={<R roles={['admin']}><CalendarPage /></R>} />
           <Route path="/admin/tasks"      element={<R roles={['admin']}><TasksPage /></R>} />
           <Route path="/admin/aspirants"  element={<R roles={['admin']}><AspiriantsPage /></R>} />
-          <Route path="/admin/reports"    element={<R roles={['admin']}><AttendanceReportsPage /></R>} />
           <Route path="/admin/logs"       element={<R roles={['admin']}><AssignmentLogPage /></R>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
