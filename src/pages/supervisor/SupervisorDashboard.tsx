@@ -19,22 +19,22 @@ function HospitalRow({ hospital }: { hospital: Hospital }) {
     <div>
       <button
         onClick={() => setExpanded(v => !v)}
-        className="flex w-full items-center px-4 py-2.5 gap-2 hover:bg-slate-700/20 transition-colors"
+        className="flex w-full items-center px-4 py-2.5 gap-2 hover:bg-stone-50 transition-colors"
       >
-        <span className="text-slate-500 shrink-0">
+        <span className="text-stone-400 shrink-0">
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </span>
-        <span className="text-xs text-slate-500 w-5 shrink-0">{hospital.id}</span>
-        <span className="flex-1 text-left text-sm text-white">{hospital.name}</span>
-        <span className="text-xs text-slate-600">{hospital.departments.length} dept{hospital.departments.length !== 1 ? 's' : ''}</span>
+        <span className="text-xs text-stone-400 w-5 shrink-0">{hospital.id}</span>
+        <span className="flex-1 text-left text-sm text-stone-900">{hospital.name}</span>
+        <span className="text-xs text-stone-400">{hospital.departments.length} dept{hospital.departments.length !== 1 ? 's' : ''}</span>
       </button>
       {expanded && (
-        <div className="ml-10 border-l border-slate-700 pl-3 pb-2">
+        <div className="ml-10 border-l border-stone-200 pl-3 pb-2">
           {hospital.departments.length === 0 ? (
-            <p className="text-xs text-slate-600 py-1">No departments</p>
+            <p className="text-xs text-stone-400 py-1">No departments</p>
           ) : (
             hospital.departments.map(d => (
-              <p key={d.id} className="text-xs text-slate-400 py-1">{d.name}</p>
+              <p key={d.id} className="text-xs text-stone-500 py-1">{d.name}</p>
             ))
           )}
         </div>
@@ -50,15 +50,15 @@ function HospitalsList() {
   if (loading) return <div className="flex justify-center py-4"><Spinner /></div>
 
   return (
-    <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden mb-4">
-      <div className="px-4 py-3 border-b border-slate-700">
+    <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden mb-4">
+      <div className="px-4 py-3 border-b border-stone-200">
         <span className="text-sm font-semibold text-emerald-400">Hospitals</span>
         <span className="ml-2 rounded-full px-2 py-0.5 text-xs font-medium bg-emerald-500/20 text-emerald-400">
           {hospitals.length}
         </span>
       </div>
       {hospitals.map((h, i) => (
-        <div key={h.id} className={i !== hospitals.length - 1 ? 'border-b border-slate-700/50' : ''}>
+        <div key={h.id} className={i !== hospitals.length - 1 ? 'border-b border-stone-200' : ''}>
           <HospitalRow hospital={h} />
         </div>
       ))}
@@ -101,7 +101,7 @@ export function SupervisorDashboard() {
         <div className="space-y-4">
           {upcoming.length > 0 && (
             <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Upcoming</p>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-400">Upcoming</p>
               <div className="space-y-3">
                 {upcoming.map(s => (
                   <SessionCard key={s.id} session={s} onClick={() => navigate(`/supervisor/session/${s.id}/mark`)} />
@@ -111,7 +111,7 @@ export function SupervisorDashboard() {
           )}
           {past.length > 0 && (
             <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Past</p>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-400">Past</p>
               <div className="space-y-3">
                 {past.slice(0, 5).map(s => (
                   <SessionCard key={s.id} session={s} onClick={() => navigate(`/supervisor/session/${s.id}/mark`)} />

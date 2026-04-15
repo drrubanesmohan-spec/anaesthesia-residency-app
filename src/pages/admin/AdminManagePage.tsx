@@ -56,32 +56,32 @@ function PeopleTab() {
         const group = users.filter(u => u.role === role)
         const isCollapsed = collapsed[role]
         return (
-          <div key={role} className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden">
+          <div key={role} className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
             <button
               onClick={() => toggle(role)}
-              className="flex w-full items-center justify-between px-4 py-3 hover:bg-slate-700/30 transition-colors"
+              className="flex w-full items-center justify-between px-4 py-3 hover:bg-stone-100 transition-colors"
             >
               <div className="flex items-center gap-2">
                 <span className={cn('text-sm font-semibold', color)}>{label}</span>
                 <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', badge)}>{group.length}</span>
               </div>
               {isCollapsed
-                ? <ChevronDown size={16} className="text-slate-500" />
-                : <ChevronUp size={16} className="text-slate-500" />}
+                ? <ChevronDown size={16} className="text-stone-400" />
+                : <ChevronUp size={16} className="text-stone-400" />}
             </button>
 
             {!isCollapsed && (
-              <div className="border-t border-slate-700">
+              <div className="border-t border-stone-200">
                 {group.length === 0 ? (
-                  <p className="px-4 py-3 text-xs text-slate-500">None</p>
+                  <p className="px-4 py-3 text-xs text-stone-400">None</p>
                 ) : (
                   group.map((u, i) => (
                     <div
                       key={u.id}
-                      className={cn('flex items-center px-4 py-2.5', i !== group.length - 1 && 'border-b border-slate-700/50')}
+                      className={cn('flex items-center px-4 py-2.5', i !== group.length - 1 && 'border-b border-stone-200')}
                     >
-                      <span className="text-xs text-slate-500 w-6 shrink-0">{i + 1}</span>
-                      <span className="flex-1 text-sm text-white">{u.full_name}</span>
+                      <span className="text-xs text-stone-400 w-6 shrink-0">{i + 1}</span>
+                      <span className="flex-1 text-sm text-stone-900">{u.full_name}</span>
                       {role === 'supervisor' && (
                         <button
                           onClick={() => changeRole(u.id, 'admin')}
@@ -152,33 +152,33 @@ function HospitalRow({
   return (
     <div>
       <div className="flex items-center px-4 py-2.5 gap-2">
-        <button onClick={() => setExpanded(v => !v)} className="text-slate-500 hover:text-slate-300 shrink-0">
+        <button onClick={() => setExpanded(v => !v)} className="text-stone-400 hover:text-stone-600 shrink-0">
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
-        <span className="text-xs text-slate-500 w-5 shrink-0">{hospital.id}</span>
+        <span className="text-xs text-stone-400 w-5 shrink-0">{hospital.id}</span>
 
         {editingName ? (
           <>
             <input
-              className="flex-1 bg-slate-700 text-sm text-white rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-emerald-500"
+              className="flex-1 bg-stone-200 text-sm text-stone-900 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-emerald-500"
               value={draft}
               onChange={e => setDraft(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false) }}
               autoFocus
             />
             <button onClick={saveName} className="text-emerald-400 hover:text-emerald-300"><Check size={14} /></button>
-            <button onClick={() => setEditingName(false)} className="text-slate-500 hover:text-slate-300"><X size={14} /></button>
+            <button onClick={() => setEditingName(false)} className="text-stone-400 hover:text-stone-600"><X size={14} /></button>
           </>
         ) : (
           <>
-            <span className="flex-1 text-sm text-white">{hospital.name}</span>
-            <span className="text-xs text-slate-600 mr-1">
+            <span className="flex-1 text-sm text-stone-900">{hospital.name}</span>
+            <span className="text-xs text-stone-400 mr-1">
               {hospital.departments.length} dept{hospital.departments.length !== 1 ? 's' : ''}
             </span>
-            <button onClick={() => { setEditingName(true); setDraft(hospital.name) }} className="text-slate-500 hover:text-slate-300">
+            <button onClick={() => { setEditingName(true); setDraft(hospital.name) }} className="text-stone-400 hover:text-stone-600">
               <Pencil size={13} />
             </button>
-            <button onClick={openAddDept} className="text-slate-500 hover:text-emerald-400">
+            <button onClick={openAddDept} className="text-stone-400 hover:text-emerald-400">
               <Plus size={14} />
             </button>
           </>
@@ -186,14 +186,14 @@ function HospitalRow({
       </div>
 
       {expanded && (
-        <div className="ml-10 border-l border-slate-700 pl-3 pb-1">
+        <div className="ml-10 border-l border-stone-200 pl-3 pb-1">
           {hospital.departments.length === 0 && !addingDept && (
-            <p className="text-xs text-slate-600 py-1">No departments yet</p>
+            <p className="text-xs text-stone-400 py-1">No departments yet</p>
           )}
           {hospital.departments.map(d => (
             <div key={d.id} className="flex items-center gap-2 py-1">
-              <span className="text-xs text-slate-400 flex-1">{d.name}</span>
-              <button onClick={() => onDeleteDept(d.id, hospital.id)} className="text-slate-600 hover:text-red-400">
+              <span className="text-xs text-stone-500 flex-1">{d.name}</span>
+              <button onClick={() => onDeleteDept(d.id, hospital.id)} className="text-stone-400 hover:text-red-400">
                 <Trash2 size={12} />
               </button>
             </div>
@@ -202,18 +202,18 @@ function HospitalRow({
             <div className="flex items-center gap-2 py-1">
               <input
                 ref={deptInputRef}
-                className="flex-1 bg-slate-700 text-xs text-white rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-emerald-500"
+                className="flex-1 bg-stone-200 text-xs text-stone-900 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-emerald-500"
                 placeholder="Department name"
                 value={deptDraft}
                 onChange={e => setDeptDraft(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') saveDept(); if (e.key === 'Escape') setAddingDept(false) }}
               />
               <button onClick={saveDept} className="text-emerald-400 hover:text-emerald-300"><Check size={13} /></button>
-              <button onClick={() => setAddingDept(false)} className="text-slate-500 hover:text-slate-300"><X size={13} /></button>
+              <button onClick={() => setAddingDept(false)} className="text-stone-400 hover:text-stone-600"><X size={13} /></button>
             </div>
           )}
           {!addingDept && (
-            <button onClick={openAddDept} className="flex items-center gap-1 text-xs text-slate-500 hover:text-emerald-400 py-1">
+            <button onClick={openAddDept} className="flex items-center gap-1 text-xs text-stone-400 hover:text-emerald-400 py-1">
               <Plus size={11} /> Add department
             </button>
           )}
@@ -230,8 +230,8 @@ function HospitalTab() {
   return (
     <div className="space-y-4">
       {/* Hospitals + departments */}
-      <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-700 flex items-center gap-2">
+      <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
+        <div className="px-4 py-3 border-b border-stone-200 flex items-center gap-2">
           <span className="text-sm font-semibold text-emerald-400">Hospitals</span>
           {!loading && (
             <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-emerald-500/20 text-emerald-400">
@@ -243,7 +243,7 @@ function HospitalTab() {
           <div className="flex justify-center py-6"><Spinner /></div>
         ) : (
           hospitals.map((h, i) => (
-            <div key={h.id} className={i !== hospitals.length - 1 ? 'border-b border-slate-700/50' : ''}>
+            <div key={h.id} className={i !== hospitals.length - 1 ? 'border-b border-stone-200' : ''}>
               <HospitalRow
                 hospital={h}
                 onRename={updateHospital}
@@ -340,18 +340,18 @@ function AttendanceTab() {
   return (
     <div className="space-y-3">
       {/* Date + search */}
-      <div className="rounded-2xl border border-slate-700 bg-brand-light px-4 py-3 flex flex-col gap-3">
+      <div className="rounded-2xl border border-stone-200 bg-brand-light px-4 py-3 flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <input
             type="date"
             value={date}
             onChange={e => setDate(e.target.value)}
-            className="bg-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-amber-500"
+            className="bg-stone-200 text-xs text-stone-900 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-amber-500"
           />
           <div className="flex gap-3 text-xs ml-auto">
             <span className="text-emerald-400 font-medium">{present}P</span>
             <span className="text-red-400 font-medium">{absent}A</span>
-            <span className="text-slate-500">{unmarked} unmarked</span>
+            <span className="text-stone-400">{unmarked} unmarked</span>
           </div>
         </div>
         <input
@@ -359,16 +359,16 @@ function AttendanceTab() {
           placeholder="Search resident…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full bg-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-slate-500"
+          className="w-full bg-stone-200 text-xs text-stone-900 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-stone-400"
         />
       </div>
 
       {/* Resident list */}
-      <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden">
+      <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
         {loadingRes ? (
           <div className="flex justify-center py-8"><Spinner /></div>
         ) : filtered.length === 0 ? (
-          <p className="px-4 py-4 text-xs text-slate-500">No residents found.</p>
+          <p className="px-4 py-4 text-xs text-stone-400">No residents found.</p>
         ) : (
           filtered.map((r, i) => {
             const rec = records.find(x => x.resident_id === r.id)
@@ -378,12 +378,12 @@ function AttendanceTab() {
                 key={r.id}
                 className={cn(
                   'flex items-center px-4 py-2.5 gap-3',
-                  i !== filtered.length - 1 && 'border-b border-slate-700/50',
+                  i !== filtered.length - 1 && 'border-b border-stone-200',
                   loadingAtt && 'opacity-50 pointer-events-none'
                 )}
               >
-                <span className="text-xs text-slate-500 w-6 shrink-0">{i + 1}</span>
-                <span className="flex-1 text-sm text-white truncate">{r.full_name}</span>
+                <span className="text-xs text-stone-400 w-6 shrink-0">{i + 1}</span>
+                <span className="flex-1 text-sm text-stone-900 truncate">{r.full_name}</span>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     onClick={() => mark(r.id, 'present')}
@@ -392,7 +392,7 @@ function AttendanceTab() {
                       'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
                       rec?.status === 'present'
                         ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500'
-                        : 'text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10'
+                        : 'text-stone-400 hover:text-emerald-400 hover:bg-emerald-500/10'
                     )}
                   >
                     <CheckCircle2 size={13} />P
@@ -404,7 +404,7 @@ function AttendanceTab() {
                       'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
                       rec?.status === 'absent'
                         ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500'
-                        : 'text-slate-500 hover:text-red-400 hover:bg-red-500/10'
+                        : 'text-stone-400 hover:text-red-400 hover:bg-red-500/10'
                     )}
                   >
                     <XCircle size={13} />A
@@ -414,7 +414,7 @@ function AttendanceTab() {
                       onClick={() => mark(r.id, null)}
                       disabled={isSaving}
                       title="Clear"
-                      className="text-slate-600 hover:text-slate-400 transition-colors"
+                      className="text-stone-400 hover:text-stone-500 transition-colors"
                     >
                       <MinusCircle size={14} />
                     </button>
@@ -445,7 +445,7 @@ export function AdminManagePage() {
   return (
     <AppShell title="Manage">
       {/* Segmented control */}
-      <div className="flex rounded-xl bg-slate-800 p-1 mb-4">
+      <div className="flex rounded-xl bg-stone-100 p-1 mb-4">
         {SEGMENTS.map(s => (
           <button
             key={s.key}
@@ -453,8 +453,8 @@ export function AdminManagePage() {
             className={cn(
               'flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors',
               segment === s.key
-                ? 'bg-brand-light text-white shadow'
-                : 'text-slate-500 hover:text-slate-300'
+                ? 'bg-brand-light text-stone-900 shadow'
+                : 'text-stone-400 hover:text-stone-600'
             )}
           >
             {s.label}

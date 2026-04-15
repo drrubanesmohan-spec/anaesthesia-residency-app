@@ -41,33 +41,33 @@ export function AdminDashboard() {
     <AppShell title="Dashboard" showLogout>
       <div className="space-y-4">
         {/* Greeting */}
-        <div className="rounded-2xl border border-slate-700 bg-brand-light px-5 py-4">
-          <p className="text-xs text-slate-500 mb-1">{greeting}</p>
-          <p className="text-lg font-semibold text-white">{appUser?.fullName ?? ''}</p>
+        <div className="rounded-2xl border border-stone-200 bg-brand-light px-5 py-4">
+          <p className="text-xs text-stone-400 mb-1">{greeting}</p>
+          <p className="text-lg font-semibold text-stone-900">{appUser?.fullName ?? ''}</p>
         </div>
 
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-3">
           <Card className="text-center">
             <p className="text-3xl font-bold text-sky-400">{stats?.residents ?? '—'}</p>
-            <p className="text-xs text-slate-500 mt-1">Residents</p>
+            <p className="text-xs text-stone-400 mt-1">Residents</p>
           </Card>
           <Card className="text-center">
             <p className="text-3xl font-bold text-purple-400">{stats?.supervisors ?? '—'}</p>
-            <p className="text-xs text-slate-500 mt-1">Supervisors</p>
+            <p className="text-xs text-stone-400 mt-1">Supervisors</p>
           </Card>
           <Card className="text-center">
             <p className="text-3xl font-bold text-emerald-400">{stats?.present ?? '—'}</p>
-            <p className="text-xs text-slate-500 mt-1">Present today</p>
+            <p className="text-xs text-stone-400 mt-1">Present today</p>
           </Card>
           <Card className="text-center">
             <p className="text-3xl font-bold text-red-400">{stats?.absent ?? '—'}</p>
-            <p className="text-xs text-slate-500 mt-1">Absent today</p>
+            <p className="text-xs text-stone-400 mt-1">Absent today</p>
           </Card>
         </div>
 
         {/* Today's date */}
-        <p className="text-center text-xs text-slate-600">{today}</p>
+        <p className="text-center text-xs text-stone-400">{today}</p>
       </div>
     </AppShell>
   )

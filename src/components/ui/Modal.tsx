@@ -36,10 +36,10 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
         )}
       >
         <div className="mb-4 flex items-center justify-between">
-          {title && <h2 className="text-base font-semibold text-white">{title}</h2>}
+          {title && <h2 className="text-base font-semibold text-stone-900">{title}</h2>}
           <button
             onClick={onClose}
-            className="ml-auto rounded-full p-1 text-slate-400 hover:bg-slate-700 hover:text-white"
+            className="ml-auto rounded-full p-1 text-stone-500 hover:bg-stone-200 hover:text-stone-900"
           >
             <X size={20} />
           </button>

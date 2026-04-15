@@ -55,11 +55,11 @@ export function ManageUsersPage() {
             const group = users.filter(u => u.role === role)
             const isCollapsed = collapsed[role]
             return (
-              <div key={role} className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden">
+              <div key={role} className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
                 {/* Section header */}
                 <button
                   onClick={() => toggle(role)}
-                  className="flex w-full items-center justify-between px-4 py-3 hover:bg-slate-700/30 transition-colors"
+                  className="flex w-full items-center justify-between px-4 py-3 hover:bg-stone-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-semibold ${color}`}>{label}</span>
@@ -67,22 +67,22 @@ export function ManageUsersPage() {
                       {group.length}
                     </span>
                   </div>
-                  {isCollapsed ? <ChevronDown size={16} className="text-slate-500" /> : <ChevronUp size={16} className="text-slate-500" />}
+                  {isCollapsed ? <ChevronDown size={16} className="text-stone-400" /> : <ChevronUp size={16} className="text-stone-400" />}
                 </button>
 
                 {/* User list */}
                 {!isCollapsed && (
-                  <div className="border-t border-slate-700">
+                  <div className="border-t border-stone-200">
                     {group.length === 0 ? (
-                      <p className="px-4 py-3 text-xs text-slate-500">None</p>
+                      <p className="px-4 py-3 text-xs text-stone-400">None</p>
                     ) : (
                       group.map((u, i) => (
                         <div
                           key={u.id}
-                          className={`flex items-center px-4 py-2.5 ${i !== group.length - 1 ? 'border-b border-slate-700/50' : ''}`}
+                          className={`flex items-center px-4 py-2.5 ${i !== group.length - 1 ? 'border-b border-stone-200' : ''}`}
                         >
-                          <span className="text-xs text-slate-500 w-6 shrink-0">{i + 1}</span>
-                          <span className="text-sm text-white flex-1">{u.full_name}</span>
+                          <span className="text-xs text-stone-400 w-6 shrink-0">{i + 1}</span>
+                          <span className="text-sm text-stone-900 flex-1">{u.full_name}</span>
                           {role === 'supervisor' && (
                             <button
                               onClick={() => changeRole(u.id, 'admin')}

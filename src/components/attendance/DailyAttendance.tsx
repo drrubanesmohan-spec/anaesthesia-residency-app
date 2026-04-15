@@ -40,9 +40,9 @@ function ResidentAttendanceRow({
   }
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-700/50 last:border-0">
-      <span className="text-xs text-slate-500 w-6 shrink-0">{index + 1}</span>
-      <span className="flex-1 text-sm text-white truncate">{resident.full_name}</span>
+    <div className="flex items-center gap-3 px-4 py-2.5 border-b border-stone-200 last:border-0">
+      <span className="text-xs text-stone-400 w-6 shrink-0">{index + 1}</span>
+      <span className="flex-1 text-sm text-stone-900 truncate">{resident.full_name}</span>
       <div className="flex items-center gap-2 shrink-0">
         <button
           onClick={() => handle('present')}
@@ -50,7 +50,7 @@ function ResidentAttendanceRow({
           className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
             record?.status === 'present'
               ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500'
-              : 'text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10'
+              : 'text-stone-400 hover:text-emerald-400 hover:bg-emerald-500/10'
           }`}
         >
           <CheckCircle2 size={13} />
@@ -62,7 +62,7 @@ function ResidentAttendanceRow({
           className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
             record?.status === 'absent'
               ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500'
-              : 'text-slate-500 hover:text-red-400 hover:bg-red-500/10'
+              : 'text-stone-400 hover:text-red-400 hover:bg-red-500/10'
           }`}
         >
           <XCircle size={13} />
@@ -151,15 +151,15 @@ export function DailyAttendance({ supervisorDeptId }: { supervisorDeptId: string
   if (!supervisorDeptId) return null
 
   return (
-    <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden mb-4">
+    <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden mb-4">
       <button
         onClick={() => setCollapsed(v => !v)}
-        className="flex w-full items-center justify-between px-4 py-3 border-b border-slate-700 hover:bg-slate-700/20 transition-colors"
+        className="flex w-full items-center justify-between px-4 py-3 border-b border-stone-200 hover:bg-stone-50 transition-colors"
       >
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-amber-400">Daily Attendance</span>
           {markedCount > 0 && (
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-stone-400">
               <span className="text-emerald-400">{presentCount}P</span>
               {' / '}
               <span className="text-red-400">{absentCount}A</span>
@@ -168,26 +168,26 @@ export function DailyAttendance({ supervisorDeptId }: { supervisorDeptId: string
           )}
         </div>
         {collapsed
-          ? <ChevronDown size={16} className="text-slate-500" />
-          : <ChevronUp size={16} className="text-slate-500" />}
+          ? <ChevronDown size={16} className="text-stone-400" />
+          : <ChevronUp size={16} className="text-stone-400" />}
       </button>
 
       {!collapsed && (
         <>
-          <div className="px-4 py-3 border-b border-slate-700/50">
+          <div className="px-4 py-3 border-b border-stone-200">
             <input
               type="date"
               value={selectedDate}
               max={today()}
               onChange={e => setSelectedDate(e.target.value)}
-              className="bg-slate-700 text-xs text-white rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-amber-500"
+              className="bg-stone-200 text-xs text-stone-900 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-amber-500"
             />
           </div>
 
           {loading ? (
             <div className="flex justify-center py-4"><Spinner /></div>
           ) : residents.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-slate-500">No residents in your department.</p>
+            <p className="px-4 py-3 text-xs text-stone-400">No residents in your department.</p>
           ) : (
             residents.map((r, i) => (
               <ResidentAttendanceRow

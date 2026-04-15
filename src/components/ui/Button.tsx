@@ -12,9 +12,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const base = 'inline-flex items-center justify-center font-medium rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
     const variants = {
       primary: 'bg-brand-accent text-brand hover:bg-sky-300 active:bg-sky-500',
-      secondary: 'bg-brand-light text-white hover:bg-slate-600 active:bg-slate-700',
-      ghost: 'bg-transparent text-slate-300 hover:bg-brand-light active:bg-slate-700',
-      danger: 'bg-red-600 text-white hover:bg-red-500 active:bg-red-700',
+      secondary: 'bg-brand-light text-stone-900 hover:bg-stone-200 active:bg-stone-200',
+      ghost: 'bg-transparent text-stone-600 hover:bg-brand-light active:bg-stone-200',
+      danger: 'bg-red-600 text-stone-900 hover:bg-red-500 active:bg-red-700',
     }
     const sizes = {
       sm: 'px-3 py-1.5 text-sm min-h-[36px]',

@@ -69,15 +69,15 @@ function AssignmentLogTab() {
         return (
           <Card key={l.id} className="py-3 space-y-1">
             <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-medium text-white">{l.resident?.full_name ?? 'Unknown'}</p>
-              <span className="shrink-0 text-xs text-slate-500">{dateStr} {timeStr}</span>
+              <p className="text-sm font-medium text-stone-900">{l.resident?.full_name ?? 'Unknown'}</p>
+              <span className="shrink-0 text-xs text-stone-400">{dateStr} {timeStr}</span>
             </div>
             <div className="flex items-center gap-1.5 text-xs flex-wrap">
-              <span className="text-slate-500">{fromLabel}</span>
-              <ArrowRight size={12} className="text-slate-600 shrink-0" />
+              <span className="text-stone-400">{fromLabel}</span>
+              <ArrowRight size={12} className="text-stone-400 shrink-0" />
               <span className="text-emerald-400">{toLabel}</span>
             </div>
-            <p className="text-xs text-slate-600">by {l.changer?.full_name ?? 'Unknown'}</p>
+            <p className="text-xs text-stone-400">by {l.changer?.full_name ?? 'Unknown'}</p>
           </Card>
         )
       })}
@@ -122,21 +122,21 @@ function DailyAttendanceLogTab() {
           type="date"
           value={filterDate}
           onChange={e => setFilterDate(e.target.value)}
-          className="bg-brand-light border border-slate-700 text-xs text-white rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-amber-500"
+          className="bg-brand-light border border-stone-200 text-xs text-stone-900 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-amber-500"
         />
         {(['all', 'present', 'absent'] as const).map(s => (
           <button
             key={s}
             onClick={() => setFilterStatus(s)}
             className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors ${
-              filterStatus === s ? 'bg-brand-accent text-brand' : 'bg-brand-light text-slate-400 hover:text-white'
+              filterStatus === s ? 'bg-brand-accent text-brand' : 'bg-brand-light text-stone-500 hover:text-stone-900'
             }`}
           >
             {s}
           </button>
         ))}
         {filterDate && (
-          <button onClick={() => setFilterDate('')} className="text-xs text-slate-500 hover:text-white">
+          <button onClick={() => setFilterDate('')} className="text-xs text-stone-400 hover:text-stone-900">
             Clear date
           </button>
         )}
@@ -152,8 +152,8 @@ function DailyAttendanceLogTab() {
             return (
               <Card key={l.id} className="flex items-center gap-3 py-2.5">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{l.resident?.full_name ?? 'Unknown'}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-sm font-medium text-stone-900 truncate">{l.resident?.full_name ?? 'Unknown'}</p>
+                  <p className="text-xs text-stone-400">
                     {l.date} · {timeStr} · by {l.marker?.full_name ?? 'Unknown'}
                   </p>
                 </div>
@@ -192,7 +192,7 @@ export function AssignmentLogPage() {
               key={key}
               onClick={() => setTab(key)}
               className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${
-                tab === key ? 'bg-brand-accent text-brand' : 'text-slate-400 hover:text-white'
+                tab === key ? 'bg-brand-accent text-brand' : 'text-stone-500 hover:text-stone-900'
               }`}
             >
               {label}

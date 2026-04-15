@@ -13,20 +13,20 @@ export function TopBar({ title, showBack, showLogout }: TopBarProps) {
   const { signOut } = useAuth()
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center border-b border-slate-700 bg-brand px-4 pt-safe">
+    <header className="sticky top-0 z-30 flex h-14 items-center border-b border-stone-800 bg-brand-dark px-4 pt-safe">
       {showBack && (
         <button
           onClick={() => navigate(-1)}
-          className="mr-2 rounded-full p-1.5 text-slate-400 hover:bg-brand-light hover:text-white"
+          className="mr-2 rounded-full p-1.5 text-stone-400 hover:bg-stone-800 hover:text-stone-900"
         >
           <ChevronLeft size={22} />
         </button>
       )}
-      <h1 className="flex-1 text-base font-semibold text-white">{title}</h1>
+      <h1 className="flex-1 text-base font-semibold text-stone-900 tracking-wide">{title}</h1>
       {showLogout && (
         <button
           onClick={signOut}
-          className="rounded-full p-1.5 text-slate-400 hover:bg-brand-light hover:text-white"
+          className="rounded-full p-1.5 text-stone-400 hover:bg-stone-800 hover:text-stone-900"
         >
           <LogOut size={20} />
         </button>

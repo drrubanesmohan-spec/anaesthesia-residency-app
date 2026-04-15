@@ -24,12 +24,12 @@ interface Profile { id: string; full_name: string; role: string }
 
 const STATUS_LABELS: Record<string, string> = { pending: 'Pending', in_progress: 'In Progress', done: 'Done' }
 const STATUS_COLORS: Record<string, string> = {
-  pending:     'bg-slate-600/40 text-slate-300',
+  pending:     'bg-stone-200/60 text-stone-600',
   in_progress: 'bg-amber-500/20 text-amber-400',
   done:        'bg-emerald-500/20 text-emerald-400',
 }
 const PRIORITY_COLORS: Record<string, string> = {
-  low:    'text-slate-500',
+  low:    'text-stone-400',
   normal: 'text-blue-400',
   high:   'text-red-400',
 }
@@ -87,10 +87,10 @@ function AddTaskModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-t-3xl bg-[#1e293b] p-5 pb-10 animate-in slide-in-from-bottom-4 max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-lg rounded-t-3xl bg-white p-5 pb-10 animate-in slide-in-from-bottom-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-base font-semibold text-white">New Task</p>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <p className="text-base font-semibold text-stone-900">New Task</p>
+          <button onClick={onClose} className="text-stone-500 hover:text-stone-900 transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -100,44 +100,44 @@ function AddTaskModal({
             placeholder="Title"
             value={title}
             onChange={e => setTitle(e.target.value)}
-            className="w-full rounded-xl bg-slate-700/60 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-xl bg-stone-100 px-4 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 outline-none focus:ring-1 focus:ring-blue-500"
           />
           <textarea
             placeholder="Description (optional)"
             value={desc}
             onChange={e => setDesc(e.target.value)}
             rows={2}
-            className="w-full rounded-xl bg-slate-700/60 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+            className="w-full rounded-xl bg-stone-100 px-4 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 outline-none focus:ring-1 focus:ring-blue-500 resize-none"
           />
 
-          <div className="rounded-xl bg-slate-700/60 overflow-hidden">
+          <div className="rounded-xl bg-stone-100 overflow-hidden">
             {/* Due date */}
-            <div className="flex items-center px-4 py-2.5 border-b border-slate-600/50">
-              <span className="text-xs text-slate-400 w-20 shrink-0">Due date</span>
+            <div className="flex items-center px-4 py-2.5 border-b border-stone-300">
+              <span className="text-xs text-stone-500 w-20 shrink-0">Due date</span>
               <input
                 type="date"
                 value={dueDate}
                 onChange={e => setDueDate(e.target.value)}
-                className="flex-1 bg-transparent text-sm text-white outline-none"
+                className="flex-1 bg-transparent text-sm text-stone-900 outline-none"
               />
             </div>
             {/* Assign to */}
-            <div className="flex items-center px-4 py-2.5 border-b border-slate-600/50">
-              <span className="text-xs text-slate-400 w-20 shrink-0">Assign to</span>
+            <div className="flex items-center px-4 py-2.5 border-b border-stone-300">
+              <span className="text-xs text-stone-500 w-20 shrink-0">Assign to</span>
               <select
                 value={assignedTo}
                 onChange={e => setAssignedTo(e.target.value)}
-                className="flex-1 bg-transparent text-sm text-white outline-none"
+                className="flex-1 bg-transparent text-sm text-stone-900 outline-none"
               >
-                <option value="" className="bg-slate-800">— None —</option>
+                <option value="" className="bg-stone-100">— None —</option>
                 {people.map(p => (
-                  <option key={p.id} value={p.id} className="bg-slate-800">{p.full_name}</option>
+                  <option key={p.id} value={p.id} className="bg-stone-100">{p.full_name}</option>
                 ))}
               </select>
             </div>
             {/* Priority */}
             <div className="flex items-center px-4 py-2.5">
-              <span className="text-xs text-slate-400 w-20 shrink-0">Priority</span>
+              <span className="text-xs text-stone-500 w-20 shrink-0">Priority</span>
               <div className="flex gap-2">
                 {(['low', 'normal', 'high'] as const).map(p => (
                   <button
@@ -147,9 +147,9 @@ function AddTaskModal({
                       'px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors',
                       priority === p
                         ? p === 'high' ? 'bg-red-500/30 text-red-400 ring-1 ring-red-500'
-                          : p === 'low' ? 'bg-slate-600 text-slate-300 ring-1 ring-slate-400'
+                          : p === 'low' ? 'bg-stone-200 text-stone-600 ring-1 ring-stone-400'
                           : 'bg-blue-500/30 text-blue-400 ring-1 ring-blue-500'
-                        : 'text-slate-500 hover:text-slate-300'
+                        : 'text-stone-400 hover:text-stone-600'
                     )}
                   >
                     {p}
@@ -163,7 +163,7 @@ function AddTaskModal({
           <button
             onClick={submit}
             disabled={saving}
-            className="w-full rounded-xl bg-blue-500 py-2.5 text-sm font-semibold text-white hover:bg-blue-400 disabled:opacity-50 transition-colors"
+            className="w-full rounded-xl bg-brand-accent py-2.5 text-sm font-semibold text-stone-900 hover:bg-brand-accent/80 disabled:opacity-50 transition-colors"
           >
             {saving ? 'Adding…' : 'Add Task'}
           </button>
@@ -195,13 +195,13 @@ function TaskCard({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden">
+    <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
       <div className="flex items-start gap-3 px-4 py-3">
         {/* Priority dot */}
         <Flag size={13} className={cn('mt-0.5 shrink-0', PRIORITY_COLORS[task.priority])} />
 
         <div className="flex-1 min-w-0">
-          <p className={cn('text-sm font-medium', task.status === 'done' ? 'line-through text-slate-500' : 'text-white')}>
+          <p className={cn('text-sm font-medium', task.status === 'done' ? 'line-through text-stone-400' : 'text-stone-900')}>
             {task.title}
           </p>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -216,28 +216,28 @@ function TaskCard({
               {STATUS_LABELS[task.status]}
             </button>
             {task.due_date && (
-              <span className="text-[10px] text-slate-500">Due {task.due_date}</span>
+              <span className="text-[10px] text-stone-400">Due {task.due_date}</span>
             )}
             {task.assignee && (
-              <span className="text-[10px] text-slate-500">→ {(task.assignee as unknown as { full_name: string }).full_name}</span>
+              <span className="text-[10px] text-stone-400">→ {(task.assignee as unknown as { full_name: string }).full_name}</span>
             )}
           </div>
         </div>
 
         <button
           onClick={() => setExpanded(v => !v)}
-          className="text-slate-600 hover:text-slate-400 transition-colors shrink-0 mt-0.5"
+          className="text-stone-400 hover:text-stone-500 transition-colors shrink-0 mt-0.5"
         >
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
       </div>
 
       {expanded && (
-        <div className="px-4 pb-3 border-t border-slate-700/50 pt-2">
+        <div className="px-4 pb-3 border-t border-stone-200 pt-2">
           {task.description && (
-            <p className="text-xs text-slate-400 mb-2">{task.description}</p>
+            <p className="text-xs text-stone-500 mb-2">{task.description}</p>
           )}
-          <div className="flex items-center gap-3 text-[10px] text-slate-500">
+          <div className="flex items-center gap-3 text-[10px] text-stone-400">
             {task.creator && <span>Created by {(task.creator as unknown as { full_name: string }).full_name}</span>}
             <span>{new Date(task.created_at).toLocaleDateString()}</span>
           </div>
@@ -306,8 +306,8 @@ export function TasksPage() {
             className={cn(
               'shrink-0 rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors',
               filter === f
-                ? 'bg-blue-500 text-white'
-                : 'bg-slate-800 text-slate-400 hover:text-white'
+                ? 'bg-brand-accent text-white'
+                : 'bg-stone-100 text-stone-500 hover:text-stone-900'
             )}
           >
             {f === 'all' ? 'All' : STATUS_LABELS[f]}
@@ -326,7 +326,7 @@ export function TasksPage() {
       {loading ? (
         <div className="flex justify-center pt-12"><Spinner /></div>
       ) : filtered.length === 0 ? (
-        <p className="text-center text-xs text-slate-600 pt-12 italic">No tasks here.</p>
+        <p className="text-center text-xs text-stone-400 pt-12 italic">No tasks here.</p>
       ) : (
         <div className="space-y-2">
           {filtered.map(task => (

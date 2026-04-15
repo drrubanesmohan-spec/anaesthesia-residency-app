@@ -28,15 +28,15 @@ export function MyAttendancePage() {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const session = (r as any).sessions
             return (
-              <div key={r.id ?? i} className="rounded-2xl border border-slate-700 bg-brand-light p-4">
+              <div key={r.id ?? i} className="rounded-2xl border border-stone-200 bg-brand-light p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm font-medium text-white">{session?.title ?? 'Session'}</p>
+                    <p className="text-sm font-medium text-stone-900">{session?.title ?? 'Session'}</p>
                     {session?.scheduled_date && (
-                      <p className="text-xs text-slate-500 mt-0.5">{formatDate(session.scheduled_date)}</p>
+                      <p className="text-xs text-stone-400 mt-0.5">{formatDate(session.scheduled_date)}</p>
                     )}
                     {session?.location && (
-                      <p className="text-xs text-slate-500">{session.location}</p>
+                      <p className="text-xs text-stone-400">{session.location}</p>
                     )}
                   </div>
                   <AttendanceStatusBadge status={r.status} />

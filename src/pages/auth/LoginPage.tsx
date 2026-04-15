@@ -38,8 +38,8 @@ export function LoginPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-accent/20">
             <span className="text-3xl">⚕</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">Anaesthesia App</h1>
-          <p className="mt-1 text-sm text-slate-400">Residency Program Portal</p>
+          <h1 className="text-2xl font-bold text-stone-900">Anaesthesia App</h1>
+          <p className="mt-1 text-sm text-stone-500">Residency Program Portal</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
@@ -71,7 +71,7 @@ export function LoginPage() {
             Sign in
           </Button>
         </form>
-        <p className="mt-4 text-center text-sm text-slate-500">
+        <p className="mt-4 text-center text-sm text-stone-400">
           <Link to="/forgot-password" className="text-brand-accent hover:underline">
             Forgot password?
           </Link>

@@ -21,7 +21,7 @@ const STATUS_OPTIONS = ['pending', 'reviewing', 'accepted', 'rejected'] as const
 type Status = typeof STATUS_OPTIONS[number]
 
 const STATUS_COLORS: Record<Status, string> = {
-  pending:   'bg-slate-600/40 text-slate-300',
+  pending:   'bg-stone-200/60 text-stone-600',
   reviewing: 'bg-amber-500/20 text-amber-400',
   accepted:  'bg-emerald-500/20 text-emerald-400',
   rejected:  'bg-red-500/20 text-red-400',
@@ -68,10 +68,10 @@ function AddAspirantModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-t-3xl bg-[#1e293b] p-5 pb-10 animate-in slide-in-from-bottom-4 max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-lg rounded-t-3xl bg-white p-5 pb-10 animate-in slide-in-from-bottom-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-base font-semibold text-white">Add Aspirant</p>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <p className="text-base font-semibold text-stone-900">Add Aspirant</p>
+          <button onClick={onClose} className="text-stone-500 hover:text-stone-900 transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -81,37 +81,37 @@ function AddAspirantModal({
             placeholder="Full name"
             value={name}
             onChange={e => setName(e.target.value)}
-            className="w-full rounded-xl bg-slate-700/60 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-xl bg-stone-100 px-4 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 outline-none focus:ring-1 focus:ring-blue-500"
           />
 
-          <div className="rounded-xl bg-slate-700/60 overflow-hidden">
-            <div className="flex items-center px-4 py-2.5 border-b border-slate-600/50">
-              <span className="text-xs text-slate-400 w-20 shrink-0">Email</span>
+          <div className="rounded-xl bg-stone-100 overflow-hidden">
+            <div className="flex items-center px-4 py-2.5 border-b border-stone-300">
+              <span className="text-xs text-stone-500 w-20 shrink-0">Email</span>
               <input
                 type="email"
                 placeholder="optional"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="flex-1 bg-transparent text-sm text-white placeholder:text-slate-600 outline-none"
+                className="flex-1 bg-transparent text-sm text-stone-900 placeholder:text-stone-400 outline-none"
               />
             </div>
-            <div className="flex items-center px-4 py-2.5 border-b border-slate-600/50">
-              <span className="text-xs text-slate-400 w-20 shrink-0">Phone</span>
+            <div className="flex items-center px-4 py-2.5 border-b border-stone-300">
+              <span className="text-xs text-stone-500 w-20 shrink-0">Phone</span>
               <input
                 type="tel"
                 placeholder="optional"
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
-                className="flex-1 bg-transparent text-sm text-white placeholder:text-slate-600 outline-none"
+                className="flex-1 bg-transparent text-sm text-stone-900 placeholder:text-stone-400 outline-none"
               />
             </div>
             <div className="flex items-center px-4 py-2.5">
-              <span className="text-xs text-slate-400 w-20 shrink-0">Applied</span>
+              <span className="text-xs text-stone-500 w-20 shrink-0">Applied</span>
               <input
                 type="date"
                 value={appliedAt}
                 onChange={e => setAppliedAt(e.target.value)}
-                className="flex-1 bg-transparent text-sm text-white outline-none"
+                className="flex-1 bg-transparent text-sm text-stone-900 outline-none"
               />
             </div>
           </div>
@@ -121,14 +121,14 @@ function AddAspirantModal({
             value={notes}
             onChange={e => setNotes(e.target.value)}
             rows={2}
-            className="w-full rounded-xl bg-slate-700/60 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+            className="w-full rounded-xl bg-stone-100 px-4 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 outline-none focus:ring-1 focus:ring-blue-500 resize-none"
           />
 
           {error && <p className="text-xs text-red-400">{error}</p>}
           <button
             onClick={submit}
             disabled={saving}
-            className="w-full rounded-xl bg-blue-500 py-2.5 text-sm font-semibold text-white hover:bg-blue-400 disabled:opacity-50 transition-colors"
+            className="w-full rounded-xl bg-brand-accent py-2.5 text-sm font-semibold text-stone-900 hover:bg-brand-accent/80 disabled:opacity-50 transition-colors"
           >
             {saving ? 'Saving…' : 'Add Aspirant'}
           </button>
@@ -154,13 +154,13 @@ function AspirantCard({
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden">
+    <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white truncate">{aspirant.full_name}</p>
+          <p className="text-sm font-medium text-stone-900 truncate">{aspirant.full_name}</p>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            {aspirant.email && <span className="text-[10px] text-slate-500">{aspirant.email}</span>}
-            {aspirant.applied_at && <span className="text-[10px] text-slate-600">Applied {aspirant.applied_at}</span>}
+            {aspirant.email && <span className="text-[10px] text-stone-400">{aspirant.email}</span>}
+            {aspirant.applied_at && <span className="text-[10px] text-stone-400">Applied {aspirant.applied_at}</span>}
           </div>
         </div>
         <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full capitalize shrink-0', STATUS_COLORS[aspirant.status])}>
@@ -168,19 +168,19 @@ function AspirantCard({
         </span>
         <button
           onClick={() => setExpanded(v => !v)}
-          className="text-slate-600 hover:text-slate-400 transition-colors shrink-0"
+          className="text-stone-400 hover:text-stone-500 transition-colors shrink-0"
         >
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
       </div>
 
       {expanded && (
-        <div className="px-4 pb-3 border-t border-slate-700/50 pt-3 space-y-3">
+        <div className="px-4 pb-3 border-t border-stone-200 pt-3 space-y-3">
           {aspirant.phone && (
-            <p className="text-xs text-slate-400">Phone: {aspirant.phone}</p>
+            <p className="text-xs text-stone-500">Phone: {aspirant.phone}</p>
           )}
           {aspirant.notes && (
-            <p className="text-xs text-slate-400">{aspirant.notes}</p>
+            <p className="text-xs text-stone-500">{aspirant.notes}</p>
           )}
 
           {isAdmin && (
@@ -195,7 +195,7 @@ function AspirantCard({
                       'px-2.5 py-1 rounded-full text-xs font-medium capitalize transition-colors',
                       aspirant.status === s
                         ? STATUS_COLORS[s] + ' ring-1 ring-current'
-                        : 'bg-slate-700/50 text-slate-500 hover:text-slate-300'
+                        : 'bg-stone-100 text-stone-400 hover:text-stone-600'
                     )}
                   >
                     {s}
@@ -255,9 +255,9 @@ export function AspiriantsPage() {
       {!loading && aspirants.length > 0 && (
         <div className="grid grid-cols-4 gap-2 mb-4">
           {STATUS_OPTIONS.map(s => (
-            <div key={s} className="rounded-xl bg-brand-light border border-slate-700 py-2 text-center">
+            <div key={s} className="rounded-xl bg-brand-light border border-stone-200 py-2 text-center">
               <p className={cn('text-lg font-bold', STATUS_COLORS[s].split(' ')[1])}>{counts[s]}</p>
-              <p className="text-[9px] text-slate-600 capitalize mt-0.5">{s}</p>
+              <p className="text-[9px] text-stone-400 capitalize mt-0.5">{s}</p>
             </div>
           ))}
         </div>
@@ -272,8 +272,8 @@ export function AspiriantsPage() {
             className={cn(
               'shrink-0 rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors',
               filter === f
-                ? 'bg-blue-500 text-white'
-                : 'bg-slate-800 text-slate-400 hover:text-white'
+                ? 'bg-brand-accent text-white'
+                : 'bg-stone-100 text-stone-500 hover:text-stone-900'
             )}
           >
             {f === 'all' ? `All (${aspirants.length})` : `${f} (${counts[f]})`}
@@ -292,7 +292,7 @@ export function AspiriantsPage() {
       {loading ? (
         <div className="flex justify-center pt-12"><Spinner /></div>
       ) : filtered.length === 0 ? (
-        <p className="text-center text-xs text-slate-600 pt-12 italic">No aspirants here.</p>
+        <p className="text-center text-xs text-stone-400 pt-12 italic">No aspirants here.</p>
       ) : (
         <div className="space-y-2">
           {filtered.map(a => (

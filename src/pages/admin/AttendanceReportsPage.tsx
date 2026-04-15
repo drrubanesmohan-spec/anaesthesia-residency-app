@@ -45,7 +45,7 @@ export function AttendanceReportsPage() {
             key={f}
             onClick={() => setFilter(f)}
             className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors ${
-              filter === f ? 'bg-brand-accent text-brand' : 'bg-brand-light text-slate-400 hover:text-white'
+              filter === f ? 'bg-brand-accent text-brand' : 'bg-brand-light text-stone-500 hover:text-stone-900'
             }`}
           >
             {f}
@@ -62,10 +62,10 @@ export function AttendanceReportsPage() {
           {filtered.map(r => (
             <Card key={r.id} className="flex items-center justify-between gap-3 py-3">
               <div className="flex-1 min-w-0">
-                <p className="truncate text-sm font-medium text-white">
+                <p className="truncate text-sm font-medium text-stone-900">
                   {r.profiles?.full_name ?? 'Unknown'}
                 </p>
-                <p className="truncate text-xs text-slate-500">
+                <p className="truncate text-xs text-stone-400">
                   {r.sessions?.title ?? '—'} · {r.sessions?.scheduled_date ? formatDate(r.sessions.scheduled_date) : ''}
                 </p>
               </div>

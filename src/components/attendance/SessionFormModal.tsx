@@ -92,11 +92,11 @@ export function SessionFormModal({ open, onClose, onSaved, session, currentUser 
       <form onSubmit={handleSubmit} className="space-y-3">
         <Input label="Title" value={title} onChange={e => setTitle(e.target.value)} required />
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-300">Type</label>
+          <label className="mb-1.5 block text-sm font-medium text-stone-600">Type</label>
           <select
             value={sessionType}
             onChange={e => setSessionType(e.target.value as SessionType)}
-            className="w-full rounded-xl border border-slate-600 bg-brand-light px-4 py-3 text-sm text-white focus:border-brand-accent focus:outline-none"
+            className="w-full rounded-xl border border-stone-300 bg-brand-light px-4 py-3 text-sm text-stone-900 focus:border-brand-accent focus:outline-none"
           >
             {sessionTypes.map(t => (
               <option key={t.value} value={t.value}>{t.label}</option>
@@ -111,11 +111,11 @@ export function SessionFormModal({ open, onClose, onSaved, session, currentUser 
         </div>
         {supervisors.length > 0 && (
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-300">Supervisor</label>
+            <label className="mb-1.5 block text-sm font-medium text-stone-600">Supervisor</label>
             <select
               value={supervisorId}
               onChange={e => setSupervisorId(e.target.value)}
-              className="w-full rounded-xl border border-slate-600 bg-brand-light px-4 py-3 text-sm text-white focus:border-brand-accent focus:outline-none"
+              className="w-full rounded-xl border border-stone-300 bg-brand-light px-4 py-3 text-sm text-stone-900 focus:border-brand-accent focus:outline-none"
             >
               <option value="">— None —</option>
               {supervisors.map(s => (

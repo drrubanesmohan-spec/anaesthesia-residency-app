@@ -41,7 +41,7 @@ export function BottomTabBar() {
       : residentTabs
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-700 bg-brand pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-stone-800 bg-brand-dark pb-safe">
       <div className="flex">
         {tabs.map(({ to, icon: Icon, label, end }) => (
           <NavLink
@@ -51,7 +51,7 @@ export function BottomTabBar() {
             className={({ isActive }) =>
               cn(
                 'flex flex-1 flex-col items-center justify-center py-2 text-xs transition-colors',
-                isActive ? 'text-brand-accent' : 'text-slate-500 hover:text-slate-300'
+                isActive ? 'text-brand-accent' : 'text-stone-500 hover:text-stone-300'
               )
             }
           >

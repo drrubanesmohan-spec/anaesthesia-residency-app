@@ -38,10 +38,10 @@ export function ResidentDashboard() {
     <AppShell title="Dashboard" showLogout>
       <div className="space-y-4">
         <div>
-          <p className="text-lg font-semibold text-white">
+          <p className="text-lg font-semibold text-stone-900">
             Hello, {appUser?.fullName.split(' ')[0]}
           </p>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-stone-500">
             {appUser?.year ? `Year ${appUser.year} Resident` : 'Resident'}
             {appUser?.department ? ` · ${appUser.department}` : ''}
           </p>
@@ -50,14 +50,14 @@ export function ResidentDashboard() {
         {stats && (
           <>
             <Card>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-stone-400 mb-3">
                 Attendance summary
               </p>
               <div className="flex items-end gap-2 mb-3">
-                <span className="text-4xl font-bold text-white">{pct ?? 0}%</span>
-                <span className="mb-1 text-sm text-slate-400">attendance rate</span>
+                <span className="text-4xl font-bold text-stone-900">{pct ?? 0}%</span>
+                <span className="mb-1 text-sm text-stone-500">attendance rate</span>
               </div>
-              <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
+              <div className="h-2 rounded-full bg-stone-200 overflow-hidden">
                 <div
                   className="h-2 rounded-full bg-brand-accent transition-all"
                   style={{ width: `${pct ?? 0}%` }}
@@ -73,7 +73,7 @@ export function ResidentDashboard() {
               ].map(({ label, value, color }) => (
                 <Card key={label} className="text-center">
                   <p className={`text-2xl font-bold ${color}`}>{value}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{label}</p>
+                  <p className="text-xs text-stone-400 mt-0.5">{label}</p>
                 </Card>
               ))}
             </div>

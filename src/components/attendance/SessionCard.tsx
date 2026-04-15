@@ -9,7 +9,7 @@ const typeColors: Record<string, string> = {
   icu: 'bg-red-500/20 text-red-400',
   tutorial: 'bg-blue-500/20 text-blue-400',
   simulation: 'bg-orange-500/20 text-orange-400',
-  other: 'bg-slate-500/20 text-slate-400',
+  other: 'bg-stone-300/40 text-stone-500',
 }
 
 interface SessionCardProps {
@@ -20,14 +20,14 @@ interface SessionCardProps {
 export function SessionCard({ session, onClick }: SessionCardProps) {
   return (
     <Card
-      className={onClick ? 'cursor-pointer hover:border-slate-500 active:bg-slate-700/50' : ''}
+      className={onClick ? 'cursor-pointer hover:border-stone-400 active:bg-stone-100' : ''}
       onClick={onClick}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="truncate font-medium text-white">{session.title}</p>
+          <p className="truncate font-medium text-stone-900">{session.title}</p>
           <div className="mt-2 space-y-1">
-            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <div className="flex items-center gap-1.5 text-xs text-stone-500">
               <Calendar size={13} />
               <span>{formatDate(session.scheduled_date)}</span>
               {session.start_time && (
@@ -38,13 +38,13 @@ export function SessionCard({ session, onClick }: SessionCardProps) {
               )}
             </div>
             {session.location && (
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <div className="flex items-center gap-1.5 text-xs text-stone-500">
                 <MapPin size={13} />
                 <span>{session.location}</span>
               </div>
             )}
             {session.supervisor && (
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <div className="flex items-center gap-1.5 text-xs text-stone-500">
                 <User size={13} />
                 <span>{(session.supervisor as { full_name: string }).full_name}</span>
               </div>

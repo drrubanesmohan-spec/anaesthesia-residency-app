@@ -64,23 +64,23 @@ function SupervisorRow({
     selDept !== (current?.department_id ?? '')
 
   return (
-    <div className="px-4 py-3 border-b border-slate-700/50 last:border-0">
+    <div className="px-4 py-3 border-b border-stone-200 last:border-0">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-xs text-slate-500 w-6 shrink-0">{index + 1}</span>
-        <span className="text-sm text-white font-medium flex-1">{supervisor.full_name}</span>
+        <span className="text-xs text-stone-400 w-6 shrink-0">{index + 1}</span>
+        <span className="text-sm text-stone-900 font-medium flex-1">{supervisor.full_name}</span>
         {currentHospital ? (
-          <span className="text-xs text-slate-500 truncate max-w-[130px]">
+          <span className="text-xs text-stone-400 truncate max-w-[130px]">
             {currentDept ? `${currentHospital.name} / ${currentDept.name}` : currentHospital.name}
           </span>
         ) : (
-          <span className="text-xs text-slate-600 italic">Unassigned</span>
+          <span className="text-xs text-stone-400 italic">Unassigned</span>
         )}
       </div>
       <div className="ml-6 flex items-center gap-2 flex-wrap">
         <select
           value={selHospital}
           onChange={e => handleHospitalChange(e.target.value)}
-          className="flex-1 min-w-[110px] bg-slate-700 text-xs text-white rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-purple-500"
+          className="flex-1 min-w-[110px] bg-stone-200 text-xs text-stone-900 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-purple-500"
         >
           <option value="">Hospital</option>
           {hospitals.map(h => (
@@ -91,7 +91,7 @@ function SupervisorRow({
           value={selDept}
           onChange={e => setSelDept(e.target.value)}
           disabled={!selHospital || depts.length === 0}
-          className="flex-1 min-w-[110px] bg-slate-700 text-xs text-white rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-40"
+          className="flex-1 min-w-[110px] bg-stone-200 text-xs text-stone-900 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-40"
         >
           <option value="">Department</option>
           {depts.map(d => (
@@ -102,7 +102,7 @@ function SupervisorRow({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="shrink-0 rounded px-3 py-1.5 text-xs font-medium bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-50"
+            className="shrink-0 rounded px-3 py-1.5 text-xs font-medium bg-purple-600 hover:bg-purple-500 text-stone-900 disabled:opacity-50"
           >
             {saving ? '...' : 'Save'}
           </button>
@@ -159,10 +159,10 @@ export function SupervisorAssignments() {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden mb-4">
+    <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden mb-4">
       <button
         onClick={() => setCollapsed(v => !v)}
-        className="flex w-full items-center justify-between px-4 py-3 border-b border-slate-700 hover:bg-slate-700/20 transition-colors"
+        className="flex w-full items-center justify-between px-4 py-3 border-b border-stone-200 hover:bg-stone-50 transition-colors"
       >
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-purple-400">Supervisor Assignments</span>
@@ -171,15 +171,15 @@ export function SupervisorAssignments() {
           </span>
         </div>
         {collapsed
-          ? <ChevronDown size={16} className="text-slate-500" />
-          : <ChevronUp size={16} className="text-slate-500" />}
+          ? <ChevronDown size={16} className="text-stone-400" />
+          : <ChevronUp size={16} className="text-stone-400" />}
       </button>
 
       {!collapsed && (
         loadingSupervisors ? (
           <div className="flex justify-center py-4"><Spinner /></div>
         ) : supervisors.length === 0 ? (
-          <p className="px-4 py-3 text-xs text-slate-500">No supervisors found</p>
+          <p className="px-4 py-3 text-xs text-stone-400">No supervisors found</p>
         ) : (
           supervisors.map((s, i) => (
             <SupervisorRow

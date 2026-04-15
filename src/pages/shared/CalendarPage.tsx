@@ -103,10 +103,10 @@ function AddEventModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-t-3xl bg-[#1e293b] p-5 pb-10 animate-in slide-in-from-bottom-4">
+      <div className="w-full max-w-lg rounded-t-3xl bg-white p-5 pb-10 animate-in slide-in-from-bottom-4">
         <div className="flex items-center justify-between mb-4">
-          <span className="text-xs text-slate-400">New Event</span>
-          <button onClick={handleClose} className="text-slate-400 hover:text-white transition-colors">
+          <span className="text-xs text-stone-500">New Event</span>
+          <button onClick={handleClose} className="text-stone-500 hover:text-stone-900 transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -118,22 +118,22 @@ function AddEventModal({
             value={title}
             onChange={e => handleTitle(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && submit()}
-            className="w-full rounded-xl bg-slate-700/60 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-xl bg-stone-100 px-4 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 outline-none focus:ring-1 focus:ring-blue-500"
           />
 
           {/* Date range row */}
-          <div className="rounded-xl bg-slate-700/60 overflow-hidden">
+          <div className="rounded-xl bg-stone-100 overflow-hidden">
             {/* Start date */}
-            <div className="flex items-center px-4 py-2.5 border-b border-slate-600/50">
-              <span className="text-xs text-slate-400 w-14 shrink-0">Starts</span>
-              <span className="flex-1 text-sm text-white">{startLabel}</span>
+            <div className="flex items-center px-4 py-2.5 border-b border-stone-300">
+              <span className="text-xs text-stone-500 w-14 shrink-0">Starts</span>
+              <span className="flex-1 text-sm text-stone-900">{startLabel}</span>
               {/* Start date is fixed to selected day — shown as read-only */}
-              <span className="text-xs text-slate-500 italic">selected day</span>
+              <span className="text-xs text-stone-400 italic">selected day</span>
             </div>
             {/* End date */}
             <div className="flex items-center px-4 py-2.5">
-              <span className="text-xs text-slate-400 w-14 shrink-0">Ends</span>
-              <span className="flex-1 text-sm text-white">{isMultiDay ? endLabel : startLabel}</span>
+              <span className="text-xs text-stone-500 w-14 shrink-0">Ends</span>
+              <span className="flex-1 text-sm text-stone-900">{isMultiDay ? endLabel : startLabel}</span>
               <input
                 type="date"
                 value={endDate}
@@ -149,14 +149,14 @@ function AddEventModal({
             value={desc}
             onChange={e => handleDesc(e.target.value)}
             rows={3}
-            className="w-full rounded-xl bg-slate-700/60 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+            className="w-full rounded-xl bg-stone-100 px-4 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 outline-none focus:ring-1 focus:ring-blue-500 resize-none"
           />
 
           {error && <p className="text-xs text-red-400">{error}</p>}
           <button
             onClick={submit}
             disabled={saving}
-            className="w-full rounded-xl bg-blue-500 py-2.5 text-sm font-semibold text-white hover:bg-blue-400 disabled:opacity-50 transition-colors"
+            className="w-full rounded-xl bg-brand-accent py-2.5 text-sm font-semibold text-stone-900 hover:bg-brand-accent/80 disabled:opacity-50 transition-colors"
           >
             {saving ? 'Adding…' : 'Add Event'}
           </button>
@@ -283,11 +283,11 @@ export function CalendarPage() {
       <div className="flex flex-col gap-4">
 
         {/* Month grid */}
-        <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">
+        <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200">
             <button
               onClick={prevMonth}
-              className="p-1.5 rounded-full hover:bg-slate-700/50 transition-colors text-slate-300"
+              className="p-1.5 rounded-full hover:bg-stone-100 transition-colors text-stone-600"
             >
               <ChevronLeft size={18} />
             </button>
@@ -295,7 +295,7 @@ export function CalendarPage() {
             {/* Month/year label — tapping opens picker */}
             <button
               onClick={() => { setPickYear(year); setShowPicker(v => !v) }}
-              className="flex items-center gap-1 text-sm font-semibold text-white hover:text-blue-300 transition-colors"
+              className="flex items-center gap-1 text-sm font-semibold text-stone-900 hover:text-blue-300 transition-colors"
             >
               {monthLabel}
               <ChevronDown size={14} className={cn('transition-transform', showPicker && 'rotate-180')} />
@@ -303,7 +303,7 @@ export function CalendarPage() {
 
             <button
               onClick={nextMonth}
-              className="p-1.5 rounded-full hover:bg-slate-700/50 transition-colors text-slate-300"
+              className="p-1.5 rounded-full hover:bg-stone-100 transition-colors text-stone-600"
             >
               <ChevronRight size={18} />
             </button>
@@ -311,19 +311,19 @@ export function CalendarPage() {
 
           {/* Month/year picker dropdown */}
           {showPicker && (
-            <div className="border-b border-slate-700/50 px-3 pt-3 pb-4 bg-slate-800/60">
+            <div className="border-b border-stone-200 px-3 pt-3 pb-4 bg-stone-100">
               {/* Year row */}
               <div className="flex items-center justify-between mb-3">
                 <button
                   onClick={() => setPickYear(y => y - 1)}
-                  className="p-1 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                  className="p-1 rounded-full hover:bg-stone-200 text-stone-500 hover:text-stone-900 transition-colors"
                 >
                   <ChevronLeft size={16} />
                 </button>
-                <span className="text-sm font-bold text-white">{pickYear}</span>
+                <span className="text-sm font-bold text-stone-900">{pickYear}</span>
                 <button
                   onClick={() => setPickYear(y => y + 1)}
-                  className="p-1 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                  className="p-1 rounded-full hover:bg-stone-200 text-stone-500 hover:text-stone-900 transition-colors"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -343,8 +343,8 @@ export function CalendarPage() {
                       className={cn(
                         'rounded-lg py-1.5 text-xs font-medium transition-colors',
                         isCurrent
-                          ? 'bg-blue-500 text-white'
-                          : 'text-slate-300 hover:bg-slate-700'
+                          ? 'bg-brand-accent text-white'
+                          : 'text-stone-600 hover:bg-stone-200'
                       )}
                     >
                       {m}
@@ -359,7 +359,7 @@ export function CalendarPage() {
           <div className="grid grid-cols-7 px-2 pt-3">
             {DOW.map((d, i) => (
               <div key={i} className="flex justify-center">
-                <span className="text-[10px] font-medium text-slate-500 w-8 text-center">{d}</span>
+                <span className="text-[10px] font-medium text-stone-400 w-8 text-center">{d}</span>
               </div>
             ))}
           </div>
@@ -384,9 +384,9 @@ export function CalendarPage() {
                     onClick={() => setSelected(dateStr)}
                     className={cn(
                       'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors',
-                      isSel   ? 'bg-blue-500 text-white'
+                      isSel   ? 'bg-brand-accent text-white'
                       : isToday ? 'ring-1 ring-blue-400 text-blue-300'
-                      : 'text-slate-300 hover:bg-slate-700/50'
+                      : 'text-stone-600 hover:bg-stone-100'
                     )}
                   >
                     {dayNum}
@@ -403,9 +403,9 @@ export function CalendarPage() {
         </div>
 
         {/* Selected day events */}
-        <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">
-            <span className="text-xs font-semibold text-slate-300">{selectedLabel}</span>
+        <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200">
+            <span className="text-xs font-semibold text-stone-600">{selectedLabel}</span>
             {canEdit && (
               <button
                 onClick={openModal}
@@ -418,7 +418,7 @@ export function CalendarPage() {
           </div>
 
           {selectedEvents.length === 0 ? (
-            <p className="px-4 py-4 text-xs text-slate-600 italic">No events on this day.</p>
+            <p className="px-4 py-4 text-xs text-stone-400 italic">No events on this day.</p>
           ) : (
             <div>
               {selectedEvents.map((ev, i) => (
@@ -426,12 +426,12 @@ export function CalendarPage() {
                   key={ev.id}
                   className={cn(
                     'flex items-start gap-3 px-4 py-3',
-                    i !== selectedEvents.length - 1 && 'border-b border-slate-700/40'
+                    i !== selectedEvents.length - 1 && 'border-b border-stone-200'
                   )}
                 >
                   <div className="mt-1 w-2 h-2 rounded-full bg-blue-400 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white">{ev.title}</p>
+                    <p className="text-sm font-medium text-stone-900">{ev.title}</p>
                     {ev.end_date && ev.end_date !== ev.date && (
                       <p className="text-xs text-blue-400/70 mt-0.5">
                         {new Date(ev.date    + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -440,14 +440,14 @@ export function CalendarPage() {
                       </p>
                     )}
                     {ev.description && (
-                      <p className="text-xs text-slate-400 mt-0.5">{ev.description}</p>
+                      <p className="text-xs text-stone-500 mt-0.5">{ev.description}</p>
                     )}
                   </div>
                   {canEdit && (
                     <button
                       onClick={() => deleteEvent(ev.id)}
                       disabled={deleting === ev.id}
-                      className="text-slate-600 hover:text-red-400 disabled:opacity-40 transition-colors shrink-0 mt-0.5"
+                      className="text-stone-400 hover:text-red-400 disabled:opacity-40 transition-colors shrink-0 mt-0.5"
                     >
                       <Trash2 size={14} />
                     </button>

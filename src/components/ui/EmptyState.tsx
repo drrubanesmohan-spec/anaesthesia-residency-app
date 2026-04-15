@@ -11,11 +11,11 @@ export function EmptyState({ icon: Icon, title, description }: EmptyStateProps) 
     <div className="flex flex-col items-center justify-center py-16 text-center">
       {Icon && (
         <div className="mb-4 rounded-full bg-brand-light p-4">
-          <Icon className="h-8 w-8 text-slate-500" />
+          <Icon className="h-8 w-8 text-stone-400" />
         </div>
       )}
-      <p className="text-sm font-medium text-slate-300">{title}</p>
-      {description && <p className="mt-1 text-xs text-slate-500">{description}</p>}
+      <p className="text-sm font-medium text-stone-600">{title}</p>
+      {description && <p className="mt-1 text-xs text-stone-400">{description}</p>}
     </div>
   )
 }

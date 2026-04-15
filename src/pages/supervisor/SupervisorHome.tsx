@@ -65,40 +65,40 @@ export function SupervisorHome() {
     <AppShell title="Home" showLogout>
       <div className="space-y-4">
         {/* Greeting */}
-        <div className="rounded-2xl border border-slate-700 bg-brand-light px-5 py-4">
-          <p className="text-xs text-slate-500 mb-1">{greeting}</p>
-          <p className="text-lg font-semibold text-white">{appUser?.fullName ?? ''}</p>
+        <div className="rounded-2xl border border-stone-200 bg-brand-light px-5 py-4">
+          <p className="text-xs text-stone-400 mb-1">{greeting}</p>
+          <p className="text-lg font-semibold text-stone-900">{appUser?.fullName ?? ''}</p>
           {deptInfo ? (
             <p className="text-xs text-emerald-400 mt-1">
               {deptInfo.hospital_name} · {deptInfo.dept_name}
             </p>
           ) : (
-            <p className="text-xs text-slate-600 mt-1 italic">No department assigned</p>
+            <p className="text-xs text-stone-400 mt-1 italic">No department assigned</p>
           )}
         </div>
 
         {/* Today's attendance summary */}
-        <div className="rounded-2xl border border-slate-700 bg-brand-light px-5 py-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-3">
+        <div className="rounded-2xl border border-stone-200 bg-brand-light px-5 py-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-stone-400 mb-3">
             Today's Attendance · {today}
           </p>
           {summary ? (
             <div className="flex gap-4">
               <div className="flex-1 text-center">
                 <p className="text-2xl font-bold text-emerald-400">{summary.present}</p>
-                <p className="text-xs text-slate-500 mt-0.5">Present</p>
+                <p className="text-xs text-stone-400 mt-0.5">Present</p>
               </div>
               <div className="flex-1 text-center">
                 <p className="text-2xl font-bold text-red-400">{summary.absent}</p>
-                <p className="text-xs text-slate-500 mt-0.5">Absent</p>
+                <p className="text-xs text-stone-400 mt-0.5">Absent</p>
               </div>
               <div className="flex-1 text-center">
-                <p className="text-2xl font-bold text-slate-400">{summary.total - summary.present - summary.absent}</p>
-                <p className="text-xs text-slate-500 mt-0.5">Unmarked</p>
+                <p className="text-2xl font-bold text-stone-500">{summary.total - summary.present - summary.absent}</p>
+                <p className="text-xs text-stone-400 mt-0.5">Unmarked</p>
               </div>
             </div>
           ) : (
-            <p className="text-xs text-slate-600 italic">No attendance data yet today.</p>
+            <p className="text-xs text-stone-400 italic">No attendance data yet today.</p>
           )}
         </div>
       </div>

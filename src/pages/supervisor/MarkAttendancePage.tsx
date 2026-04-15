@@ -38,15 +38,15 @@ export function MarkAttendancePage() {
       showBack
     >
       {session && (
-        <p className="mb-4 text-sm text-slate-400">
+        <p className="mb-4 text-sm text-stone-500">
           {formatDate(session.scheduled_date)}
           {session.location ? ` · ${session.location}` : ''}
         </p>
       )}
 
       {records.length > 0 && (
-        <div className="mb-4 rounded-xl bg-brand-light border border-slate-700 px-4 py-2">
-          <p className="text-xs text-slate-400">
+        <div className="mb-4 rounded-xl bg-brand-light border border-stone-200 px-4 py-2">
+          <p className="text-xs text-stone-500">
             <span className="font-semibold text-emerald-400">{present}</span> / {records.length} residents present
           </p>
         </div>
@@ -57,7 +57,7 @@ export function MarkAttendancePage() {
       ) : records.length === 0 ? (
         <EmptyState icon={Users} title="No residents found" description="Add residents via the Admin panel first." />
       ) : (
-        <div className="rounded-2xl border border-slate-700 bg-brand-light px-4">
+        <div className="rounded-2xl border border-stone-200 bg-brand-light px-4">
           {records.map(r => (
             <AttendanceRow
               key={r.resident_id}
