@@ -13,7 +13,7 @@ const residentTabs = [
 
 const supervisorTabs = [
   { to: '/supervisor', icon: Home, label: 'Home', end: true },
-  { to: '/supervisor/sessions', icon: Users, label: 'Residents' },
+  { to: '/supervisor/sessions', icon: Users, label: 'Ординаторы' },
   { to: '/supervisor/calendar', icon: Calendar, label: 'Calendar' },
   { to: '/supervisor/tasks', icon: CheckSquare, label: 'Tasks' },
   { to: '/supervisor/logs', icon: ScrollText, label: 'Logs' },
