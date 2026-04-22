@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Calendar, Stethoscope, Users, ScrollText, LayoutGrid, CheckSquare, UserSearch } from 'lucide-react'
+import { Home, Calendar, Stethoscope, Users, ScrollText, LayoutGrid, CheckSquare, UserSearch, LogOut } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 
@@ -29,7 +29,7 @@ const adminTabs = [
 ]
 
 export function BottomTabBar() {
-  const { appUser } = useAuth()
+  const { appUser, signOut } = useAuth()
   if (!appUser) return null
 
   const tabs =
@@ -58,6 +58,13 @@ export function BottomTabBar() {
             <span>{label}</span>
           </NavLink>
         ))}
+        <button
+          onClick={() => signOut()}
+          className="flex flex-1 flex-col items-center justify-center py-2 text-xs text-stone-500 hover:text-red-400 transition-colors"
+        >
+          <LogOut size={22} className="mb-0.5" />
+          <span>Logout</span>
+        </button>
       </div>
     </nav>
   )
