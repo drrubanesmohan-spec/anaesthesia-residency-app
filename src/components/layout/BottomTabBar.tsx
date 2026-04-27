@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Calendar, Stethoscope, Users, ScrollText, LayoutGrid, CheckSquare, UserSearch, LogOut } from 'lucide-react'
+import { Home, Calendar, Stethoscope, Users, ScrollText, LayoutGrid, CheckSquare, UserSearch, LogOut, GraduationCap } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 
@@ -16,6 +16,7 @@ const supervisorTabs = [
   { to: '/supervisor/sessions', icon: Users, label: 'Ординаторы' },
   { to: '/supervisor/calendar', icon: Calendar, label: 'Calendar' },
   { to: '/supervisor/tasks', icon: CheckSquare, label: 'Tasks' },
+  { to: '/supervisor/students', icon: GraduationCap, label: 'Students' },
   { to: '/supervisor/logs', icon: ScrollText, label: 'Logs' },
 ]
 
@@ -25,6 +26,7 @@ const adminTabs = [
   { to: '/admin/calendar', icon: Calendar, label: 'Calendar' },
   { to: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
   { to: '/admin/aspirants', icon: UserSearch, label: 'Aspirants' },
+  { to: '/admin/students', icon: GraduationCap, label: 'Students' },
   { to: '/admin/logs', icon: ScrollText, label: 'Logs' },
 ]
 

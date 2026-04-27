@@ -19,6 +19,8 @@ const MarkAttendancePage    = lazy(() => import('../pages/supervisor/MarkAttenda
 const AdminDashboard        = lazy(() => import('../pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
 const AdminManagePage       = lazy(() => import('../pages/admin/AdminManagePage').then(m => ({ default: m.AdminManagePage })))
 const AspiriantsPage        = lazy(() => import('../pages/admin/AspiriantsPage').then(m => ({ default: m.AspiriantsPage })))
+const StudentsAdminPage     = lazy(() => import('../pages/admin/StudentsAdminPage').then(m => ({ default: m.StudentsAdminPage })))
+const StudentsPage          = lazy(() => import('../pages/supervisor/StudentsPage').then(m => ({ default: m.StudentsPage })))
 
 const SkillsPlaceholderPage = lazy(() => import('../pages/skills/SkillsPlaceholderPage').then(m => ({ default: m.SkillsPlaceholderPage })))
 const AssignmentLogPage     = lazy(() => import('../pages/shared/AssignmentLogPage').then(m => ({ default: m.AssignmentLogPage })))
@@ -70,6 +72,7 @@ export function AppRouter() {
           <Route path="/supervisor/session/:sessionId/mark" element={<R roles={['supervisor']}><MarkAttendancePage /></R>} />
           <Route path="/supervisor/calendar"               element={<R roles={['supervisor']}><CalendarPage /></R>} />
           <Route path="/supervisor/tasks"                  element={<R roles={['supervisor']}><TasksPage /></R>} />
+          <Route path="/supervisor/students"               element={<R roles={['supervisor']}><StudentsPage /></R>} />
           <Route path="/supervisor/logs"                   element={<R roles={['supervisor']}><AssignmentLogPage /></R>} />
 
           {/* Admin */}
@@ -78,6 +81,7 @@ export function AppRouter() {
           <Route path="/admin/calendar"   element={<R roles={['admin']}><CalendarPage /></R>} />
           <Route path="/admin/tasks"      element={<R roles={['admin']}><TasksPage /></R>} />
           <Route path="/admin/aspirants"  element={<R roles={['admin']}><AspiriantsPage /></R>} />
+          <Route path="/admin/students"   element={<R roles={['admin']}><StudentsAdminPage /></R>} />
           <Route path="/admin/logs"       element={<R roles={['admin']}><AssignmentLogPage /></R>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
