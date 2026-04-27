@@ -15,6 +15,21 @@ interface CalendarEvent {
   created_by: string | null
 }
 
+interface TimetableEvent {
+  id: string        // synthetic: "tt-{groupId}-{dow}"
+  title: string
+  date: string      // the specific date for this occurrence
+  groupName: string
+}
+
+interface GroupSchedule {
+  id: string
+  name: string
+  start_date: string | null
+  end_date: string | null
+  timetable: { id: string; day_of_week: number; subject: string }[]
+}
+
 const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const SS_YEAR     = 'cal_year'
 const SS_MONTH    = 'cal_month'
@@ -185,11 +200,12 @@ export function CalendarPage() {
     ))
     return cached ? (JSON.parse(cached) as CalendarEvent[]) : []
   })
-  const [loading,    setLoading]   = useState(events.length === 0)
+  const [loading,    setLoading]    = useState(events.length === 0)
   const [showModal,  setShowModal]  = useState(() => ss(SS_MODAL) === '1')
   const [showPicker, setShowPicker] = useState(false)
   const [pickYear,   setPickYear]   = useState(year)
   const [deleting,   setDeleting]   = useState<string | null>(null)
+  const [groups,     setGroups]     = useState<GroupSchedule[]>([])
 
   // Persist state helpers
   function setYear(y: number)     { setYearRaw(y);  ssSet(SS_YEAR, String(y)) }
@@ -199,23 +215,39 @@ export function CalendarPage() {
   function openModal()  { ssSet(SS_MODAL, '1'); setShowModal(true) }
   function closeModal() { ssRemove(SS_MODAL);   setShowModal(false) }
 
-  // Load events for current month (background-refresh even if cached)
+  // Load events + group timetables for current month
   const isFetching = useRef(false)
   const loadMonth = useCallback(async () => {
     if (isFetching.current) return
     isFetching.current = true
     const firstDay = isoDate(year, month, 1)
     const lastDay  = isoDate(year, month, new Date(year, month + 1, 0).getDate())
-    const { data } = await supabase
-      .from('calendar_events')
-      .select('id, title, date, end_date, description, created_by')
-      // include events that overlap the month: start <= lastDay AND (end_date >= firstDay OR end_date is null and date >= firstDay)
-      .lte('date', lastDay)
-      .or(`end_date.gte.${firstDay},end_date.is.null`)
-      .order('date')
+    const [{ data }, { data: gData }, { data: ttData }] = await Promise.all([
+      supabase
+        .from('calendar_events')
+        .select('id, title, date, end_date, description, created_by')
+        .lte('date', lastDay)
+        .or(`end_date.gte.${firstDay},end_date.is.null`)
+        .order('date'),
+      supabase
+        .from('student_groups')
+        .select('id, name, start_date, end_date')
+        .not('start_date', 'is', null),
+      supabase
+        .from('group_timetable')
+        .select('id, group_id, day_of_week, subject'),
+    ])
     const fresh = (data ?? []) as CalendarEvent[]
     setEvents(fresh)
     ssSet(SS_EVENTS + monthKey(year, month), JSON.stringify(fresh))
+
+    // Build group schedule objects
+    const gs: GroupSchedule[] = (gData ?? []).map((g: { id: string; name: string; start_date: string | null; end_date: string | null }) => ({
+      ...g,
+      timetable: (ttData ?? []).filter((t: { group_id: string }) => t.group_id === g.id) as GroupSchedule['timetable'],
+    }))
+    setGroups(gs)
+
     setLoading(false)
     isFetching.current = false
   }, [year, month])
@@ -244,11 +276,35 @@ export function CalendarPage() {
     }
   }
 
+  // Synthesise timetable events for every day in the current month
+  const timetableDates = new Set<string>()
+  const timetableByDate = new Map<string, TimetableEvent[]>()
+  const daysInMonthForTT = new Date(year, month + 1, 0).getDate()
+  for (let d = 1; d <= daysInMonthForTT; d++) {
+    const dateStr = isoDate(year, month, d)
+    const dow = new Date(dateStr + 'T00:00:00').getDay()
+    const hits: TimetableEvent[] = []
+    for (const g of groups) {
+      if (g.start_date && dateStr < g.start_date) continue
+      if (g.end_date   && dateStr > g.end_date)   continue
+      for (const tt of g.timetable) {
+        if (tt.day_of_week === dow) {
+          hits.push({ id: `tt-${g.id}-${tt.id}`, title: tt.subject, date: dateStr, groupName: g.name })
+        }
+      }
+    }
+    if (hits.length > 0) {
+      timetableDates.add(dateStr)
+      timetableByDate.set(dateStr, hits)
+    }
+  }
+
   // Events visible on selected day
   const selectedEvents = events.filter(e => {
     const end = e.end_date ?? e.date
     return e.date <= selected && end >= selected
   })
+  const selectedTimetableEvents = timetableByDate.get(selected) ?? []
 
   async function deleteEvent(id: string) {
     setDeleting(id)
@@ -377,7 +433,8 @@ export function CalendarPage() {
               const dateStr   = isoDate(year, month, dayNum)
               const isToday   = dateStr === today
               const isSel     = dateStr === selected
-              const hasEvent  = eventDates.has(dateStr)
+              const hasEvent      = eventDates.has(dateStr)
+              const hasTimetable  = timetableDates.has(dateStr)
               return (
                 <div key={idx} className="flex flex-col items-center py-0.5">
                   <button
@@ -391,9 +448,12 @@ export function CalendarPage() {
                   >
                     {dayNum}
                   </button>
-                  <div className="h-1.5 flex items-center justify-center mt-0.5">
+                  <div className="h-1.5 flex items-center justify-center gap-0.5 mt-0.5">
                     {hasEvent && (
                       <span className={cn('w-1.5 h-1.5 rounded-full', isSel ? 'bg-white' : 'bg-blue-400')} />
+                    )}
+                    {hasTimetable && (
+                      <span className={cn('w-1.5 h-1.5 rounded-full', isSel ? 'bg-white/70' : 'bg-brand-accent/70')} />
                     )}
                   </div>
                 </div>
@@ -417,10 +477,25 @@ export function CalendarPage() {
             )}
           </div>
 
-          {selectedEvents.length === 0 ? (
+          {selectedEvents.length === 0 && selectedTimetableEvents.length === 0 ? (
             <p className="px-4 py-4 text-xs text-stone-400 italic">No events on this day.</p>
           ) : (
             <div>
+              {selectedTimetableEvents.map((ev, i) => (
+                <div
+                  key={ev.id}
+                  className={cn(
+                    'flex items-start gap-3 px-4 py-3',
+                    (i !== selectedTimetableEvents.length - 1 || selectedEvents.length > 0) && 'border-b border-stone-200'
+                  )}
+                >
+                  <div className="mt-1 w-2 h-2 rounded-full bg-brand-accent/70 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-stone-900">{ev.title}</p>
+                    <p className="text-xs text-brand-accent/80 mt-0.5">{ev.groupName}</p>
+                  </div>
+                </div>
+              ))}
               {selectedEvents.map((ev, i) => (
                 <div
                   key={ev.id}
