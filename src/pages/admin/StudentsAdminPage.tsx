@@ -223,7 +223,7 @@ function GroupsSegment() {
     const [{ data: g }, { data: s }, { data: p }] = await Promise.all([
       supabase.from('student_groups').select('*').order('name'),
       supabase.from('students').select('id, full_name, group_id'),
-      supabase.from('profiles').select('id, full_name').eq('role', 'supervisor').order('full_name'),
+      supabase.from('profiles').select('id, full_name').in('role', ['supervisor', 'admin']).order('full_name'),
     ])
     setGroups((g ?? []) as Group[])
     setStudents((s ?? []) as Student[])
