@@ -35,10 +35,8 @@ export function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-brand px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-accent/20">
-            <span className="text-3xl">⚕</span>
-          </div>
-          <h1 className="text-2xl font-bold text-stone-900">Anaesthesia App</h1>
+          <img src="/logo.png" alt="Ordinem" className="mx-auto mb-2 h-32 w-32 object-contain" />
+          <h1 className="text-2xl font-bold text-stone-900">ORDINEM</h1>
           <p className="mt-1 text-sm text-stone-500">Residency Program Portal</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
