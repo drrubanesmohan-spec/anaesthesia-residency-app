@@ -21,16 +21,33 @@ import { cn } from '../../lib/utils'
 interface Profile { id: string; full_name: string; role: UserRole }
 
 const sections: { role: UserRole; label: string; color: string; badge: string }[] = [
-  { role: 'admin',      label: 'Admins',      color: 'text-amber-400',  badge: 'bg-amber-500/20 text-amber-400'  },
-  { role: 'supervisor', label: 'Supervisors',  color: 'text-purple-400', badge: 'bg-purple-500/20 text-purple-400' },
-  { role: 'resident',   label: 'Residents',   color: 'text-sky-400',    badge: 'bg-sky-500/20 text-sky-400'      },
+  { role: 'admin',      label: 'Admins',         color: 'text-amber-400',  badge: 'bg-amber-500/20 text-amber-400'  },
+  { role: 'supervisor', label: 'Руководители',   color: 'text-purple-400', badge: 'bg-purple-500/20 text-purple-400' },
+  { role: 'resident',   label: 'Жители',         color: 'text-sky-400',    badge: 'bg-sky-500/20 text-sky-400'      },
 ]
 
+async function callAdminUsers(token: string, body: object) {
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify(body),
+  })
+  return res.json()
+}
+
 function PeopleTab() {
-  const [users, setUsers]       = useState<Profile[]>([])
-  const [loading, setLoading]   = useState(true)
+  const [users, setUsers]         = useState<Profile[]>([])
+  const [loading, setLoading]     = useState(true)
   const [collapsed, setCollapsed] = useState<Record<UserRole, boolean>>({ admin: false, supervisor: false, resident: true })
   const [promoting, setPromoting] = useState<string | null>(null)
+  const [deleting, setDeleting]   = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName]   = useState('')
+  const [addingRole, setAddingRole] = useState<UserRole | null>(null)
+  const [newName, setNewName]     = useState('')
+  const [newEmail, setNewEmail]   = useState('')
+  const [newPass, setNewPass]     = useState('')
+  const [saving, setSaving]       = useState(false)
 
   useEffect(() => {
     supabase.from('profiles').select('id, full_name, role').order('full_name')
@@ -41,11 +58,49 @@ function PeopleTab() {
     setCollapsed(prev => ({ ...prev, [role]: !prev[role] }))
   }
 
+  async function getToken() {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token ?? ''
+  }
+
   async function changeRole(userId: string, newRole: 'admin' | 'supervisor') {
     setPromoting(userId)
     await supabase.from('profiles').update({ role: newRole }).eq('id', userId)
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
     setPromoting(null)
+  }
+
+  async function saveName(userId: string) {
+    if (!editName.trim()) return
+    const token = await getToken()
+    await callAdminUsers(token, { action: 'update_name', userId, full_name: editName.trim() })
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, full_name: editName.trim() } : u))
+    setEditingId(null)
+  }
+
+  async function deleteUser(userId: string) {
+    if (!confirm('Delete this user?')) return
+    setDeleting(userId)
+    const token = await getToken()
+    const json = await callAdminUsers(token, { action: 'delete', userId })
+    if (json.error) { alert(json.error); setDeleting(null); return }
+    setUsers(prev => prev.filter(u => u.id !== userId))
+    setDeleting(null)
+  }
+
+  async function addUser() {
+    if (!newName.trim() || !newEmail.trim() || !newPass.trim() || !addingRole) return
+    setSaving(true)
+    const token = await getToken()
+    const json = await callAdminUsers(token, {
+      action: 'create', email: newEmail.trim(),
+      password: newPass, full_name: newName.trim(), role: addingRole,
+    })
+    if (json.error) { alert(json.error); setSaving(false); return }
+    setUsers(prev => [...prev, { id: json.id, full_name: json.full_name, role: json.role }]
+      .sort((a, b) => a.full_name.localeCompare(b.full_name)))
+    setNewName(''); setNewEmail(''); setNewPass(''); setAddingRole(null)
+    setSaving(false)
   }
 
   if (loading) return <div className="flex justify-center pt-12"><Spinner /></div>
@@ -55,52 +110,104 @@ function PeopleTab() {
       {sections.map(({ role, label, color, badge }) => {
         const group = users.filter(u => u.role === role)
         const isCollapsed = collapsed[role]
+        const isAdding = addingRole === role
         return (
           <div key={role} className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
-            <button
-              onClick={() => toggle(role)}
-              className="flex w-full items-center justify-between px-4 py-3 hover:bg-stone-100 transition-colors"
-            >
-              <div className="flex items-center gap-2">
+            {/* Section header */}
+            <div className="flex items-center px-4 py-3 hover:bg-stone-50 transition-colors">
+              <button onClick={() => toggle(role)} className="flex flex-1 items-center gap-2">
                 <span className={cn('text-sm font-semibold', color)}>{label}</span>
                 <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', badge)}>{group.length}</span>
-              </div>
-              {isCollapsed
-                ? <ChevronDown size={16} className="text-stone-400" />
-                : <ChevronUp size={16} className="text-stone-400" />}
-            </button>
+              </button>
+              <button
+                onClick={() => { setAddingRole(isAdding ? null : role); setCollapsed(prev => ({ ...prev, [role]: false })) }}
+                className={cn('mr-2 transition-colors', isAdding ? 'text-red-400' : 'text-stone-400 hover:text-brand-accent')}
+              >
+                {isAdding ? <X size={15} /> : <Plus size={15} />}
+              </button>
+              <button onClick={() => toggle(role)} className="text-stone-400">
+                {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+              </button>
+            </div>
 
             {!isCollapsed && (
               <div className="border-t border-stone-200">
+                {/* Add form */}
+                {isAdding && (
+                  <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 space-y-2">
+                    <input
+                      value={newName} onChange={e => setNewName(e.target.value)}
+                      placeholder="Full name"
+                      className="w-full rounded-lg bg-white border border-stone-200 px-3 py-2 text-sm text-stone-900 outline-none focus:ring-1 focus:ring-brand-accent"
+                    />
+                    <input
+                      value={newEmail} onChange={e => setNewEmail(e.target.value)}
+                      placeholder="Email" type="email"
+                      className="w-full rounded-lg bg-white border border-stone-200 px-3 py-2 text-sm text-stone-900 outline-none focus:ring-1 focus:ring-brand-accent"
+                    />
+                    <input
+                      value={newPass} onChange={e => setNewPass(e.target.value)}
+                      placeholder="Temporary password" type="password"
+                      className="w-full rounded-lg bg-white border border-stone-200 px-3 py-2 text-sm text-stone-900 outline-none focus:ring-1 focus:ring-brand-accent"
+                    />
+                    <button
+                      onClick={addUser} disabled={saving || !newName.trim() || !newEmail.trim() || !newPass.trim()}
+                      className="w-full rounded-lg bg-brand-accent py-2 text-xs font-semibold text-white disabled:opacity-40"
+                    >
+                      {saving ? 'Adding…' : `Add ${label.slice(0, -1)}`}
+                    </button>
+                  </div>
+                )}
+
                 {group.length === 0 ? (
-                  <p className="px-4 py-3 text-xs text-stone-400">None</p>
+                  <p className="px-4 py-3 text-xs text-stone-400">None yet.</p>
                 ) : (
                   group.map((u, i) => (
                     <div
                       key={u.id}
-                      className={cn('flex items-center px-4 py-2.5', i !== group.length - 1 && 'border-b border-stone-200')}
+                      className={cn('flex items-center px-4 py-2.5 gap-2', i !== group.length - 1 && 'border-b border-stone-200')}
                     >
                       <span className="text-xs text-stone-400 w-6 shrink-0">{i + 1}</span>
-                      <span className="flex-1 text-sm text-stone-900">{u.full_name}</span>
-                      {role === 'supervisor' && (
-                        <button
-                          onClick={() => changeRole(u.id, 'admin')}
-                          disabled={promoting === u.id}
-                          title="Promote to Admin"
-                          className="ml-2 text-amber-400 hover:text-amber-300 disabled:opacity-40 transition-colors"
-                        >
-                          <ArrowUpCircle size={18} />
-                        </button>
-                      )}
-                      {role === 'admin' && (
-                        <button
-                          onClick={() => changeRole(u.id, 'supervisor')}
-                          disabled={promoting === u.id}
-                          title="Demote to Supervisor"
-                          className="ml-2 text-purple-400 hover:text-purple-300 disabled:opacity-40 transition-colors"
-                        >
-                          <ArrowDownCircle size={18} />
-                        </button>
+
+                      {editingId === u.id ? (
+                        <>
+                          <input
+                            value={editName} onChange={e => setEditName(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') saveName(u.id); if (e.key === 'Escape') setEditingId(null) }}
+                            autoFocus
+                            className="flex-1 rounded bg-stone-100 px-2 py-0.5 text-sm text-stone-900 outline-none focus:ring-1 focus:ring-brand-accent"
+                          />
+                          <button onClick={() => saveName(u.id)} className="text-emerald-500 hover:text-emerald-400"><Check size={14} /></button>
+                          <button onClick={() => setEditingId(null)} className="text-stone-400 hover:text-stone-600"><X size={14} /></button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="flex-1 text-sm text-stone-900">{u.full_name}</span>
+                          <button
+                            onClick={() => { setEditingId(u.id); setEditName(u.full_name) }}
+                            className="text-stone-400 hover:text-brand-accent transition-colors"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          {role === 'supervisor' && (
+                            <button onClick={() => changeRole(u.id, 'admin')} disabled={promoting === u.id}
+                              title="Promote to Admin" className="text-amber-400 hover:text-amber-300 disabled:opacity-40 transition-colors">
+                              <ArrowUpCircle size={16} />
+                            </button>
+                          )}
+                          {role === 'admin' && (
+                            <button onClick={() => changeRole(u.id, 'supervisor')} disabled={promoting === u.id}
+                              title="Demote to Supervisor" className="text-purple-400 hover:text-purple-300 disabled:opacity-40 transition-colors">
+                              <ArrowDownCircle size={16} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => deleteUser(u.id)} disabled={deleting === u.id}
+                            className="text-stone-300 hover:text-red-400 disabled:opacity-40 transition-colors"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </>
                       )}
                     </div>
                   ))
