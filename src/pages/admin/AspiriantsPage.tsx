@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, X, ChevronDown, ChevronUp } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Spinner } from '../../components/ui/Spinner'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 
@@ -50,20 +50,30 @@ function AddAspirantModal({
   async function submit() {
     if (!name.trim()) { setError('Name is required'); return }
     setSaving(true)
-    const { data, error: err } = await supabase
-      .from('aspirants')
-      .insert({
+    try {
+      const rec = await pb.collection('aspirants').create({
         full_name: name.trim(),
         email: email.trim() || null,
         phone: phone.trim() || null,
         notes: notes.trim() || null,
         applied_at: appliedAt || null,
+        status: 'pending',
       })
-      .select()
-      .single()
-    if (err) { setError(err.message); setSaving(false); return }
-    onSaved(data as Aspirant)
-    onClose()
+      onSaved({
+        id: rec.id,
+        full_name: rec.full_name as string,
+        email: rec.email as string | null,
+        phone: rec.phone as string | null,
+        notes: rec.notes as string | null,
+        status: (rec.status as Status) ?? 'pending',
+        applied_at: rec.applied_at as string | null,
+        created_at: rec.created as string,
+      })
+      onClose()
+    } catch (e) {
+      setError((e as Error).message)
+      setSaving(false)
+    }
   }
 
   return (
@@ -185,7 +195,6 @@ function AspirantCard({
 
           {isAdmin && (
             <>
-              {/* Status buttons */}
               <div className="flex gap-1.5 flex-wrap">
                 {STATUS_OPTIONS.map(s => (
                   <button
@@ -228,17 +237,29 @@ export function AspiriantsPage() {
   const [showModal,  setShowModal]  = useState(false)
 
   useEffect(() => {
-    supabase.from('aspirants').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => { setAspirants((data ?? []) as Aspirant[]); setLoading(false) })
+    pb.collection('aspirants').getFullList({ sort: '-created' })
+      .then(data => {
+        setAspirants(data.map(r => ({
+          id: r.id,
+          full_name: r.full_name as string,
+          email: r.email as string | null,
+          phone: r.phone as string | null,
+          notes: r.notes as string | null,
+          status: (r.status as Status) ?? 'pending',
+          applied_at: r.applied_at as string | null,
+          created_at: r.created as string,
+        })))
+        setLoading(false)
+      })
   }, [])
 
   async function handleStatusChange(id: string, status: Status) {
-    await supabase.from('aspirants').update({ status }).eq('id', id)
+    await pb.collection('aspirants').update(id, { status })
     setAspirants(prev => prev.map(a => a.id === id ? { ...a, status } : a))
   }
 
   async function handleDelete(id: string) {
-    await supabase.from('aspirants').delete().eq('id', id)
+    await pb.collection('aspirants').delete(id)
     setAspirants(prev => prev.filter(a => a.id !== id))
   }
 
@@ -251,7 +272,6 @@ export function AspiriantsPage() {
 
   return (
     <AppShell title="Aspirants">
-      {/* Summary row */}
       {!loading && aspirants.length > 0 && (
         <div className="grid grid-cols-4 gap-2 mb-4">
           {STATUS_OPTIONS.map(s => (
@@ -263,7 +283,6 @@ export function AspiriantsPage() {
         </div>
       )}
 
-      {/* Filter + add row */}
       <div className="flex gap-1.5 mb-4 overflow-x-auto pb-0.5">
         {FILTERS.map(f => (
           <button

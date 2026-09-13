@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Plus, X, ChevronDown, ChevronUp, Flag } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Spinner } from '../../components/ui/Spinner'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 
@@ -36,6 +36,23 @@ const PRIORITY_COLORS: Record<string, string> = {
 const FILTER_OPTIONS = ['all', 'pending', 'in_progress', 'done'] as const
 type Filter = typeof FILTER_OPTIONS[number]
 
+function mapTask(r: Record<string, unknown>): Task {
+  const ex = r.expand as Record<string, Record<string, unknown>> | undefined
+  return {
+    id: r.id as string,
+    title: r.title as string,
+    description: r.description as string | null,
+    due_date: r.due_date as string | null,
+    assigned_to: r.assigned_to as string | null,
+    created_by: r.created_by as string | null,
+    status: (r.status as Task['status']) ?? 'pending',
+    priority: (r.priority as Task['priority']) ?? 'normal',
+    created_at: r.created as string,
+    assignee: ex?.assigned_to ? { full_name: ex.assigned_to.full_name as string } : null,
+    creator: ex?.created_by ? { full_name: ex.created_by.full_name as string } : null,
+  }
+}
+
 /* ─── Add task modal ─────────────────────────────────────────────── */
 
 function AddTaskModal({
@@ -56,33 +73,33 @@ function AddTaskModal({
   const [error,      setError]      = useState('')
 
   useEffect(() => {
-    // Load people to assign to
     const roleFilter = appUser?.role === 'admin'
-      ? ['resident', 'supervisor', 'admin']
-      : ['resident']
-    supabase.from('profiles').select('id, full_name, role')
-      .in('role', roleFilter).order('full_name')
-      .then(({ data }) => setPeople((data ?? []) as Profile[]))
+      ? "role = 'resident' || role = 'supervisor' || role = 'admin'"
+      : "role = 'resident'"
+    pb.collection('users').getFullList({ filter: roleFilter, sort: 'full_name' })
+      .then(data => setPeople(data.map(r => ({ id: r.id, full_name: r.full_name as string, role: r.role as string }))))
   }, [appUser])
 
   async function submit() {
     if (!title.trim()) { setError('Title is required'); return }
     setSaving(true)
-    const { data, error: err } = await supabase
-      .from('tasks')
-      .insert({
+    try {
+      const rec = await pb.collection('tasks').create({
         title: title.trim(),
         description: desc.trim() || null,
         due_date: dueDate || null,
         assigned_to: assignedTo || null,
         created_by: appUser?.id,
         priority,
+        status: 'pending',
       })
-      .select('*, assignee:assigned_to(full_name), creator:created_by(full_name)')
-      .single()
-    if (err) { setError(err.message); setSaving(false); return }
-    onSaved(data as Task)
-    onClose()
+      const expanded = await pb.collection('tasks').getOne(rec.id, { expand: 'assigned_to,created_by' })
+      onSaved(mapTask(expanded as unknown as Record<string, unknown>))
+      onClose()
+    } catch (e) {
+      setError((e as Error).message)
+      setSaving(false)
+    }
   }
 
   return (
@@ -111,7 +128,6 @@ function AddTaskModal({
           />
 
           <div className="rounded-xl bg-stone-100 overflow-hidden">
-            {/* Due date */}
             <div className="flex items-center px-4 py-2.5 border-b border-stone-300">
               <span className="text-xs text-stone-500 w-20 shrink-0">Due date</span>
               <input
@@ -121,7 +137,6 @@ function AddTaskModal({
                 className="flex-1 bg-transparent text-sm text-stone-900 outline-none"
               />
             </div>
-            {/* Assign to */}
             <div className="flex items-center px-4 py-2.5 border-b border-stone-300">
               <span className="text-xs text-stone-500 w-20 shrink-0">Assign to</span>
               <select
@@ -135,7 +150,6 @@ function AddTaskModal({
                 ))}
               </select>
             </div>
-            {/* Priority */}
             <div className="flex items-center px-4 py-2.5">
               <span className="text-xs text-stone-500 w-20 shrink-0">Priority</span>
               <div className="flex gap-2">
@@ -197,7 +211,6 @@ function TaskCard({
   return (
     <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
       <div className="flex items-start gap-3 px-4 py-3">
-        {/* Priority dot */}
         <Flag size={13} className={cn('mt-0.5 shrink-0', PRIORITY_COLORS[task.priority])} />
 
         <div className="flex-1 min-w-0">
@@ -266,30 +279,27 @@ export function TasksPage() {
   const [showModal,  setShowModal]  = useState(false)
 
   const load = useCallback(async () => {
-    let query = supabase
-      .from('tasks')
-      .select('*, assignee:assigned_to(full_name), creator:created_by(full_name)')
-      .order('created_at', { ascending: false })
-
-    // Residents only see tasks assigned to them
-    if (appUser?.role === 'resident') {
-      query = query.eq('assigned_to', appUser.id)
-    }
-
-    const { data } = await query
-    setTasks((data ?? []) as Task[])
+    const filter = appUser?.role === 'resident'
+      ? `assigned_to = '${appUser.id}'`
+      : ''
+    const data = await pb.collection('tasks').getFullList({
+      filter,
+      sort: '-created',
+      expand: 'assigned_to,created_by',
+    })
+    setTasks(data.map(r => mapTask(r as unknown as Record<string, unknown>)))
     setLoading(false)
   }, [appUser])
 
   useEffect(() => { load() }, [load])
 
   async function handleStatusChange(id: string, status: Task['status']) {
-    await supabase.from('tasks').update({ status }).eq('id', id)
+    await pb.collection('tasks').update(id, { status })
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status } : t))
   }
 
   async function handleDelete(id: string) {
-    await supabase.from('tasks').delete().eq('id', id)
+    await pb.collection('tasks').delete(id)
     setTasks(prev => prev.filter(t => t.id !== id))
   }
 
@@ -297,7 +307,6 @@ export function TasksPage() {
 
   return (
     <AppShell title="Tasks">
-      {/* Filter bar */}
       <div className="flex gap-1.5 mb-4 overflow-x-auto pb-0.5">
         {FILTER_OPTIONS.map(f => (
           <button

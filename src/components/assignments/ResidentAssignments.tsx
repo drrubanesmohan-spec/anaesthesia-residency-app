@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import { useHospitals } from '../../hooks/useHospitals'
 import { useAssignments } from '../../hooks/useAssignments'
 import { useAuth } from '../../context/AuthContext'
@@ -24,40 +24,40 @@ function ResidentRow({
   index: number
   hospitals: Hospital[]
   assignments: Assignment[]
-  onAssign: (residentId: string, hospitalId: number, deptId: string, current: Assignment | undefined) => Promise<void>
+  onAssign: (residentId: string, hospitalId: string, deptId: string, current: Assignment | undefined) => Promise<void>
 }) {
-  const current = assignments.find(a => a.resident_id === resident.id)
-  const [selHospital, setSelHospital] = useState<number | ''>(current?.hospital_id ?? '')
-  const [selDept, setSelDept] = useState<string>(current?.department_id ?? '')
+  const current = assignments.find(a => a.resident === resident.id)
+  const [selHospital, setSelHospital] = useState<string>(current?.hospital ?? '')
+  const [selDept, setSelDept] = useState<string>(current?.department ?? '')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    setSelHospital(current?.hospital_id ?? '')
-    setSelDept(current?.department_id ?? '')
-  }, [current?.hospital_id, current?.department_id])
+    setSelHospital(current?.hospital ?? '')
+    setSelDept(current?.department ?? '')
+  }, [current?.hospital, current?.department])
 
   const depts = selHospital
     ? (hospitals.find(h => h.id === selHospital)?.departments ?? [])
     : []
 
-  const currentHospital = hospitals.find(h => h.id === current?.hospital_id)
-  const currentDept = currentHospital?.departments.find(d => d.id === current?.department_id)
+  const currentHospital = hospitals.find(h => h.id === current?.hospital)
+  const currentDept = currentHospital?.departments.find(d => d.id === current?.department)
 
   function handleHospitalChange(val: string) {
-    setSelHospital(val ? Number(val) : '')
+    setSelHospital(val)
     setSelDept('')
   }
 
   async function handleSave() {
     if (!selHospital || !selDept) return
     setSaving(true)
-    await onAssign(resident.id, selHospital as number, selDept, current)
+    await onAssign(resident.id, selHospital, selDept, current)
     setSaving(false)
   }
 
   const isDirty =
-    String(selHospital) !== String(current?.hospital_id ?? '') ||
-    selDept !== (current?.department_id ?? '')
+    selHospital !== (current?.hospital ?? '') ||
+    selDept !== (current?.department ?? '')
 
   return (
     <div className="px-4 py-3 border-b border-stone-200 last:border-0">
@@ -123,39 +123,34 @@ export function ResidentAssignments() {
     fetchHospitals()
     fetchAssignments()
 
-    // If supervisor, fetch their own department assignment first
     if (isSupervisor && appUser) {
-      supabase
-        .from('supervisor_assignments')
-        .select('department_id')
-        .eq('supervisor_id', appUser.id)
-        .single()
-        .then(({ data }) => {
-          setSupervisorDeptId(data?.department_id ?? null)
-        })
+      pb.collection('supervisor_assignments').getFirstListItem(
+        `supervisor = '${appUser.id}'`
+      ).then(data => {
+        setSupervisorDeptId(data.department as string ?? null)
+      }).catch(() => {
+        setSupervisorDeptId(null)
+      })
     }
 
-    supabase
-      .from('profiles')
-      .select('id, full_name')
-      .eq('role', 'resident')
-      .order('full_name')
-      .then(({ data }) => {
-        setAllResidents((data ?? []) as Resident[])
-        setLoadingResidents(false)
-      })
+    pb.collection('users').getFullList({
+      filter: "role = 'resident'",
+      sort: 'full_name',
+    }).then(data => {
+      setAllResidents(data.map(r => ({ id: r.id, full_name: r.full_name as string })))
+      setLoadingResidents(false)
+    })
   }, [fetchHospitals, fetchAssignments, isSupervisor, appUser])
 
-  // Admins see all residents; supervisors see only those in their department
   const visibleResidents = isSupervisor
     ? allResidents.filter(r =>
-        assignments.find(a => a.resident_id === r.id)?.department_id === supervisorDeptId
+        assignments.find(a => a.resident === r.id)?.department === supervisorDeptId
       )
     : allResidents
 
   async function handleAssign(
     residentId: string,
-    hospitalId: number,
+    hospitalId: string,
     deptId: string,
     current: Assignment | undefined,
   ) {
@@ -163,7 +158,6 @@ export function ResidentAssignments() {
     await assignResident(residentId, hospitalId, deptId, appUser.id, current)
   }
 
-  // Supervisors with no department assigned yet
   if (isSupervisor && !loadingResidents && supervisorDeptId === null) {
     return (
       <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden mb-4">

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { AppShell } from '../../components/layout/AppShell'
 import { Card } from '../../components/ui/Card'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 
 interface Stats {
   total: number
@@ -18,16 +18,14 @@ export function ResidentDashboard() {
 
   useEffect(() => {
     if (!appUser) return
-    supabase
-      .from('attendance')
-      .select('status')
-      .eq('resident_id', appUser.id)
-      .then(({ data }) => {
-        if (!data) return
-        const s: Stats = { total: data.length, present: 0, absent: 0, late: 0, excused: 0 }
-        data.forEach(r => { s[r.status as keyof Stats] = (s[r.status as keyof Stats] as number) + 1 })
-        setStats(s)
-      })
+    pb.collection('attendance').getFullList({
+      filter: `resident = '${appUser.id}'`,
+    }).then(data => {
+      if (!data) return
+      const s: Stats = { total: data.length, present: 0, absent: 0, late: 0, excused: 0 }
+      data.forEach(r => { s[r.status as keyof Stats] = (s[r.status as keyof Stats] as number) + 1 })
+      setStats(s)
+    })
   }, [appUser])
 
   const pct = stats && stats.total > 0

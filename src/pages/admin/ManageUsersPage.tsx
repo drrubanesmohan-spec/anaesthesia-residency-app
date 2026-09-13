@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Spinner } from '../../components/ui/Spinner'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import type { UserRole } from '../../types/auth'
 import { ChevronDown, ChevronUp, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'
 
@@ -24,12 +24,9 @@ export function ManageUsersPage() {
   const [promoting, setPromoting] = useState<string | null>(null)
 
   useEffect(() => {
-    supabase
-      .from('profiles')
-      .select('id, full_name, role')
-      .order('full_name')
-      .then(({ data }) => {
-        setUsers((data ?? []) as Profile[])
+    pb.collection('users').getFullList({ sort: 'full_name' })
+      .then(data => {
+        setUsers(data.map(r => ({ id: r.id, full_name: r.full_name as string, role: r.role as UserRole })))
         setLoading(false)
       })
   }, [])
@@ -40,7 +37,7 @@ export function ManageUsersPage() {
 
   async function changeRole(userId: string, newRole: 'admin' | 'supervisor') {
     setPromoting(userId)
-    await supabase.from('profiles').update({ role: newRole }).eq('id', userId)
+    await pb.collection('users').update(userId, { role: newRole })
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
     setPromoting(null)
   }

@@ -32,7 +32,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-brand px-6">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <img src="/logo.png" alt="Ordinem" className="mx-auto mb-2 h-32 w-32 object-contain" />

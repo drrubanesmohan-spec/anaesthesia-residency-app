@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Spinner } from '../../components/ui/Spinner'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import { useHospitals } from '../../hooks/useHospitals'
 import { useAuth } from '../../context/AuthContext'
 import { ResidentAssignments } from '../../components/assignments/ResidentAssignments'
@@ -26,15 +26,6 @@ const sections: { role: UserRole; label: string; color: string; badge: string }[
   { role: 'resident',   label: 'Жители',         color: 'text-sky-400',    badge: 'bg-sky-500/20 text-sky-400'      },
 ]
 
-async function callAdminUsers(token: string, body: object) {
-  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: JSON.stringify(body),
-  })
-  return res.json()
-}
-
 function PeopleTab() {
   const [users, setUsers]         = useState<Profile[]>([])
   const [loading, setLoading]     = useState(true)
@@ -50,30 +41,27 @@ function PeopleTab() {
   const [saving, setSaving]       = useState(false)
 
   useEffect(() => {
-    supabase.from('profiles').select('id, full_name, role').order('full_name')
-      .then(({ data }) => { setUsers((data ?? []) as Profile[]); setLoading(false) })
+    pb.collection('users').getFullList({ sort: 'full_name' })
+      .then(data => {
+        setUsers(data.map(r => ({ id: r.id, full_name: r.full_name as string, role: r.role as UserRole })))
+        setLoading(false)
+      })
   }, [])
 
   function toggle(role: UserRole) {
     setCollapsed(prev => ({ ...prev, [role]: !prev[role] }))
   }
 
-  async function getToken() {
-    const { data: { session } } = await supabase.auth.getSession()
-    return session?.access_token ?? ''
-  }
-
   async function changeRole(userId: string, newRole: 'admin' | 'supervisor') {
     setPromoting(userId)
-    await supabase.from('profiles').update({ role: newRole }).eq('id', userId)
+    await pb.collection('users').update(userId, { role: newRole })
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
     setPromoting(null)
   }
 
   async function saveName(userId: string) {
     if (!editName.trim()) return
-    const token = await getToken()
-    await callAdminUsers(token, { action: 'update_name', userId, full_name: editName.trim() })
+    await pb.collection('users').update(userId, { full_name: editName.trim() })
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, full_name: editName.trim() } : u))
     setEditingId(null)
   }
@@ -81,25 +69,33 @@ function PeopleTab() {
   async function deleteUser(userId: string) {
     if (!confirm('Delete this user?')) return
     setDeleting(userId)
-    const token = await getToken()
-    const json = await callAdminUsers(token, { action: 'delete', userId })
-    if (json.error) { alert(json.error); setDeleting(null); return }
-    setUsers(prev => prev.filter(u => u.id !== userId))
+    try {
+      await pb.collection('users').delete(userId)
+      setUsers(prev => prev.filter(u => u.id !== userId))
+    } catch (e) {
+      alert((e as Error).message)
+    }
     setDeleting(null)
   }
 
   async function addUser() {
     if (!newName.trim() || !newEmail.trim() || !newPass.trim() || !addingRole) return
     setSaving(true)
-    const token = await getToken()
-    const json = await callAdminUsers(token, {
-      action: 'create', email: newEmail.trim(),
-      password: newPass, full_name: newName.trim(), role: addingRole,
-    })
-    if (json.error) { alert(json.error); setSaving(false); return }
-    setUsers(prev => [...prev, { id: json.id, full_name: json.full_name, role: json.role }]
-      .sort((a, b) => a.full_name.localeCompare(b.full_name)))
-    setNewName(''); setNewEmail(''); setNewPass(''); setAddingRole(null)
+    try {
+      const rec = await pb.collection('users').create({
+        email: newEmail.trim(),
+        password: newPass,
+        passwordConfirm: newPass,
+        full_name: newName.trim(),
+        role: addingRole,
+        emailVisibility: true,
+      })
+      setUsers(prev => [...prev, { id: rec.id, full_name: rec.full_name as string, role: rec.role as UserRole }]
+        .sort((a, b) => a.full_name.localeCompare(b.full_name)))
+      setNewName(''); setNewEmail(''); setNewPass(''); setAddingRole(null)
+    } catch (e) {
+      alert((e as Error).message)
+    }
     setSaving(false)
   }
 
@@ -230,9 +226,9 @@ function HospitalRow({
   onDeleteDept,
 }: {
   hospital: Hospital
-  onRename: (id: number, name: string) => Promise<void>
-  onAddDept: (hospitalId: number, name: string) => Promise<void>
-  onDeleteDept: (deptId: string, hospitalId: number) => Promise<void>
+  onRename: (id: string, name: string) => Promise<void>
+  onAddDept: (hospitalId: string, name: string) => Promise<void>
+  onDeleteDept: (deptId: string, hospitalId: string) => Promise<void>
 }) {
   const [expanded, setExpanded]     = useState(false)
   const [editingName, setEditingName] = useState(false)
@@ -262,7 +258,6 @@ function HospitalRow({
         <button onClick={() => setExpanded(v => !v)} className="text-stone-400 hover:text-stone-600 shrink-0">
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
-        <span className="text-xs text-stone-400 w-5 shrink-0">{hospital.id}</span>
 
         {editingName ? (
           <>
@@ -336,7 +331,6 @@ function HospitalTab() {
 
   return (
     <div className="space-y-4">
-      {/* Hospitals + departments */}
       <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
         <div className="px-4 py-3 border-b border-stone-200 flex items-center gap-2">
           <span className="text-sm font-semibold text-emerald-400">Hospitals</span>
@@ -362,10 +356,7 @@ function HospitalTab() {
         )}
       </div>
 
-      {/* Supervisor assignments */}
       <SupervisorAssignments />
-
-      {/* Resident assignments */}
       <ResidentAssignments />
     </div>
   )
@@ -387,22 +378,27 @@ function AttendanceTab() {
   const [saving, setSaving] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
-  // Load all residents once
   useEffect(() => {
-    supabase.from('profiles').select('id, full_name').eq('role', 'resident').order('full_name')
-      .then(({ data }) => { setResidents((data ?? []) as Resident[]); setLoadingRes(false) })
+    pb.collection('users').getFullList({
+      filter: "role = 'resident'",
+      sort: 'full_name',
+    }).then(data => {
+      setResidents(data.map(r => ({ id: r.id, full_name: r.full_name as string })))
+      setLoadingRes(false)
+    })
   }, [])
 
-  // Load attendance for selected date
   const loadAtt = useCallback(async (d: string) => {
     if (residents.length === 0) return
     setLoadingAtt(true)
-    const { data } = await supabase
-      .from('daily_attendance')
-      .select('resident_id, status')
-      .eq('date', d)
-      .in('resident_id', residents.map(r => r.id))
-    setRecords((data ?? []) as AttRec[])
+    const residentIds = new Set(residents.map(r => r.id))
+    const att = await pb.collection('daily_attendance').getFullList({
+      filter: `date = '${d}'`,
+    })
+    setRecords(att
+      .filter(a => residentIds.has(a.resident as string))
+      .map(a => ({ resident_id: a.resident as string, status: a.status as 'present' | 'absent' }))
+    )
     setLoadingAtt(false)
   }, [residents])
 
@@ -414,18 +410,28 @@ function AttendanceTab() {
     const now = new Date().toISOString()
 
     if (status === null) {
-      // Clear record
-      await supabase.from('daily_attendance').delete()
-        .eq('resident_id', residentId).eq('date', date)
+      const existing = await pb.collection('daily_attendance').getFirstListItem(
+        `resident = '${residentId}' && date = '${date}'`
+      ).catch(() => null)
+      if (existing) await pb.collection('daily_attendance').delete(existing.id)
       setRecords(prev => prev.filter(r => r.resident_id !== residentId))
     } else {
-      await supabase.from('daily_attendance').upsert(
-        { resident_id: residentId, date, status, marked_by: appUser.id, marked_at: now },
-        { onConflict: 'resident_id,date' }
-      )
-      await supabase.from('daily_attendance_logs').insert(
-        { resident_id: residentId, date, status, marked_by: appUser.id, marked_at: now }
-      )
+      const existing = await pb.collection('daily_attendance').getFirstListItem(
+        `resident = '${residentId}' && date = '${date}'`
+      ).catch(() => null)
+
+      const payload = { resident: residentId, date, status, marked_by: appUser.id, marked_at: now }
+
+      if (existing) {
+        await pb.collection('daily_attendance').update(existing.id, payload)
+      } else {
+        await pb.collection('daily_attendance').create(payload)
+      }
+
+      try {
+        await pb.collection('daily_attendance_logs').create({ resident: residentId, date, status, marked_by: appUser.id, marked_at: now })
+      } catch { /* log collection may not exist */ }
+
       setRecords(prev => {
         const exists = prev.find(r => r.resident_id === residentId)
         return exists
@@ -446,7 +452,6 @@ function AttendanceTab() {
 
   return (
     <div className="space-y-3">
-      {/* Date + search */}
       <div className="rounded-2xl border border-stone-200 bg-brand-light px-4 py-3 flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <input
@@ -470,7 +475,6 @@ function AttendanceTab() {
         />
       </div>
 
-      {/* Resident list */}
       <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
         {loadingRes ? (
           <div className="flex justify-center py-8"><Spinner /></div>
@@ -551,7 +555,6 @@ export function AdminManagePage() {
 
   return (
     <AppShell title="Manage">
-      {/* Segmented control */}
       <div className="flex rounded-xl bg-stone-100 p-1 mb-4">
         {SEGMENTS.map(s => (
           <button

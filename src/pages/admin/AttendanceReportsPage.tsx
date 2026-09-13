@@ -4,7 +4,7 @@ import { Card } from '../../components/ui/Card'
 import { AttendanceStatusBadge } from '../../components/ui/Badge'
 import { Spinner } from '../../components/ui/Spinner'
 import { EmptyState } from '../../components/ui/EmptyState'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import { formatDate } from '../../lib/utils'
 import { BarChart2 } from 'lucide-react'
 import type { AttendanceStatus } from '../../types/domain'
@@ -24,15 +24,23 @@ export function AttendanceReportsPage() {
 
   useEffect(() => {
     setLoading(true)
-    supabase
-      .from('attendance')
-      .select('id, status, marked_at, sessions:session_id(title, scheduled_date), profiles:resident_id(full_name)')
-      .order('marked_at', { ascending: false })
-      .limit(100)
-      .then(({ data }) => {
-        setRows((data ?? []) as unknown as ReportRow[])
-        setLoading(false)
-      })
+    pb.collection('attendance').getFullList({
+      sort: '-marked_at',
+      expand: 'session,resident',
+    }).then(data => {
+      setRows(data.slice(0, 100).map(r => ({
+        id: r.id,
+        status: r.status as string,
+        marked_at: r.marked_at as string | null,
+        sessions: r.expand?.session
+          ? { title: (r.expand.session as Record<string, unknown>).title as string, scheduled_date: (r.expand.session as Record<string, unknown>).scheduled_date as string }
+          : null,
+        profiles: r.expand?.resident
+          ? { full_name: (r.expand.resident as Record<string, unknown>).full_name as string }
+          : null,
+      })))
+      setLoading(false)
+    })
   }, [])
 
   const filtered = filter === 'all' ? rows : rows.filter(r => r.status === filter)

@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { pb } from '../lib/pbClient'
 
 export interface Assignment {
-  resident_id: string
-  hospital_id: number | null
-  department_id: string | null
+  id: string
+  resident: string
+  hospital: string | null
+  department: string | null
   assigned_at: string | null
   assigned_by: string | null
 }
@@ -15,45 +16,46 @@ export function useAssignments() {
 
   const fetchAssignments = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('resident_assignments')
-      .select('resident_id, hospital_id, department_id, assigned_at, assigned_by')
-    setAssignments((data ?? []) as Assignment[])
+    const data = await pb.collection('resident_assignments').getFullList()
+    setAssignments(data.map(r => ({
+      id: r.id,
+      resident: r.resident as string,
+      hospital: r.hospital as string | null,
+      department: r.department as string | null,
+      assigned_at: r.assigned_at as string | null,
+      assigned_by: r.assigned_by as string | null,
+    })))
     setLoading(false)
   }, [])
 
   const assignResident = useCallback(async (
     residentId: string,
-    hospitalId: number,
+    hospitalId: string,
     departmentId: string,
     changedById: string,
     current: Assignment | undefined,
   ) => {
-    // Log the change
-    await supabase.from('resident_assignment_logs').insert({
-      resident_id: residentId,
-      from_hospital_id: current?.hospital_id ?? null,
-      from_department_id: current?.department_id ?? null,
-      to_hospital_id: hospitalId,
-      to_department_id: departmentId,
-      changed_by: changedById,
-    })
-
-    // Upsert current assignment
-    const record = {
-      resident_id: residentId,
-      hospital_id: hospitalId,
-      department_id: departmentId,
+    const payload = {
+      resident: residentId,
+      hospital: hospitalId,
+      department: departmentId,
       assigned_by: changedById,
       assigned_at: new Date().toISOString(),
     }
-    await supabase.from('resident_assignments').upsert(record)
 
-    setAssignments(prev => {
-      const exists = prev.find(a => a.resident_id === residentId)
-      if (exists) return prev.map(a => a.resident_id === residentId ? { ...a, ...record } : a)
-      return [...prev, record]
-    })
+    const existing = current
+      ? await pb.collection('resident_assignments').getFirstListItem(
+          `resident = '${residentId}'`
+        ).catch(() => null)
+      : null
+
+    if (existing) {
+      await pb.collection('resident_assignments').update(existing.id, payload)
+      setAssignments(prev => prev.map(a => a.resident === residentId ? { ...a, ...payload } : a))
+    } else {
+      const rec = await pb.collection('resident_assignments').create(payload)
+      setAssignments(prev => [...prev, { id: rec.id, ...payload }])
+    }
   }, [])
 
   return { assignments, loading, fetchAssignments, assignResident }

@@ -3,7 +3,7 @@ import { AppShell } from '../../components/layout/AppShell'
 import { Card } from '../../components/ui/Card'
 import { Spinner } from '../../components/ui/Spinner'
 import { EmptyState } from '../../components/ui/EmptyState'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import { ScrollText, ArrowRight, CheckCircle2, XCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -32,23 +32,25 @@ function AssignmentLogTab() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase
-      .from('resident_assignment_logs')
-      .select(`
-        id, changed_at,
-        resident:resident_id(full_name),
-        from_hospital:from_hospital_id(name),
-        from_dept:from_department_id(name),
-        to_hospital:to_hospital_id(name),
-        to_dept:to_department_id(name),
-        changer:changed_by(full_name)
-      `)
-      .order('changed_at', { ascending: false })
-      .limit(200)
-      .then(({ data }) => {
-        setLogs((data ?? []) as unknown as AssignmentLog[])
-        setLoading(false)
-      })
+    pb.collection('resident_assignment_logs').getFullList({
+      sort: '-changed_at',
+      expand: 'resident,from_hospital,from_department,to_hospital,to_department,changed_by',
+    }).then(data => {
+      setLogs(data.slice(0, 200).map(r => {
+        const ex = r.expand as Record<string, Record<string, unknown>> | undefined
+        return {
+          id: r.id,
+          changed_at: r.changed_at as string,
+          resident: ex?.resident ? { full_name: ex.resident.full_name as string } : null,
+          from_hospital: ex?.from_hospital ? { name: ex.from_hospital.name as string } : null,
+          from_dept: ex?.from_department ? { name: ex.from_department.name as string } : null,
+          to_hospital: ex?.to_hospital ? { name: ex.to_hospital.name as string } : null,
+          to_dept: ex?.to_department ? { name: ex.to_department.name as string } : null,
+          changer: ex?.changed_by ? { full_name: ex.changed_by.full_name as string } : null,
+        }
+      }))
+      setLoading(false)
+    }).catch(() => setLoading(false))
   }, [])
 
   if (loading) return <div className="flex justify-center pt-16"><Spinner /></div>
@@ -92,19 +94,23 @@ function DailyAttendanceLogTab() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'present' | 'absent'>('all')
 
   useEffect(() => {
-    supabase
-      .from('daily_attendance_logs')
-      .select(`
-        id, date, marked_at, status,
-        resident:resident_id(full_name),
-        marker:marked_by(full_name)
-      `)
-      .order('marked_at', { ascending: false })
-      .limit(500)
-      .then(({ data }) => {
-        setLogs((data ?? []) as unknown as DailyLog[])
-        setLoading(false)
-      })
+    pb.collection('daily_attendance_logs').getFullList({
+      sort: '-marked_at',
+      expand: 'resident,marked_by',
+    }).then(data => {
+      setLogs(data.slice(0, 500).map(r => {
+        const ex = r.expand as Record<string, Record<string, unknown>> | undefined
+        return {
+          id: r.id,
+          date: r.date as string,
+          marked_at: r.marked_at as string,
+          status: r.status as 'present' | 'absent',
+          resident: ex?.resident ? { full_name: ex.resident.full_name as string } : null,
+          marker: ex?.marked_by ? { full_name: ex.marked_by.full_name as string } : null,
+        }
+      }))
+      setLoading(false)
+    }).catch(() => setLoading(false))
   }, [])
 
   const filtered = logs.filter(l => {

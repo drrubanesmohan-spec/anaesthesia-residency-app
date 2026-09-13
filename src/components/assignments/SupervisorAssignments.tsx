@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import { useHospitals } from '../../hooks/useHospitals'
 import { useAuth } from '../../context/AuthContext'
 import { Spinner } from '../ui/Spinner'
@@ -12,9 +12,9 @@ interface Supervisor {
 }
 
 interface SupervisorAssignment {
-  supervisor_id: string
-  hospital_id: number | null
-  department_id: string | null
+  supervisor: string
+  hospital: string | null
+  department: string | null
 }
 
 function SupervisorRow({
@@ -28,40 +28,40 @@ function SupervisorRow({
   index: number
   hospitals: Hospital[]
   assignments: SupervisorAssignment[]
-  onAssign: (supervisorId: string, hospitalId: number, deptId: string) => Promise<void>
+  onAssign: (supervisorId: string, hospitalId: string, deptId: string) => Promise<void>
 }) {
-  const current = assignments.find(a => a.supervisor_id === supervisor.id)
-  const [selHospital, setSelHospital] = useState<number | ''>(current?.hospital_id ?? '')
-  const [selDept, setSelDept] = useState<string>(current?.department_id ?? '')
+  const current = assignments.find(a => a.supervisor === supervisor.id)
+  const [selHospital, setSelHospital] = useState<string>(current?.hospital ?? '')
+  const [selDept, setSelDept] = useState<string>(current?.department ?? '')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    setSelHospital(current?.hospital_id ?? '')
-    setSelDept(current?.department_id ?? '')
-  }, [current?.hospital_id, current?.department_id])
+    setSelHospital(current?.hospital ?? '')
+    setSelDept(current?.department ?? '')
+  }, [current?.hospital, current?.department])
 
   const depts = selHospital
     ? (hospitals.find(h => h.id === selHospital)?.departments ?? [])
     : []
 
-  const currentHospital = hospitals.find(h => h.id === current?.hospital_id)
-  const currentDept = currentHospital?.departments.find(d => d.id === current?.department_id)
+  const currentHospital = hospitals.find(h => h.id === current?.hospital)
+  const currentDept = currentHospital?.departments.find(d => d.id === current?.department)
 
   function handleHospitalChange(val: string) {
-    setSelHospital(val ? Number(val) : '')
+    setSelHospital(val)
     setSelDept('')
   }
 
   async function handleSave() {
     if (!selHospital || !selDept) return
     setSaving(true)
-    await onAssign(supervisor.id, selHospital as number, selDept)
+    await onAssign(supervisor.id, selHospital, selDept)
     setSaving(false)
   }
 
   const isDirty =
-    String(selHospital) !== String(current?.hospital_id ?? '') ||
-    selDept !== (current?.department_id ?? '')
+    selHospital !== (current?.hospital ?? '') ||
+    selDept !== (current?.department ?? '')
 
   return (
     <div className="px-4 py-3 border-b border-stone-200 last:border-0">
@@ -121,40 +121,50 @@ export function SupervisorAssignments() {
   const [collapsed, setCollapsed] = useState(false)
 
   const fetchAssignments = useCallback(async () => {
-    const { data } = await supabase
-      .from('supervisor_assignments')
-      .select('supervisor_id, hospital_id, department_id')
-    setAssignments((data ?? []) as SupervisorAssignment[])
+    const data = await pb.collection('supervisor_assignments').getFullList()
+    setAssignments(data.map(r => ({
+      supervisor: r.supervisor as string,
+      hospital: r.hospital as string | null,
+      department: r.department as string | null,
+    })))
   }, [])
 
   useEffect(() => {
     fetchHospitals()
     fetchAssignments()
-    supabase
-      .from('profiles')
-      .select('id, full_name')
-      .eq('role', 'supervisor')
-      .order('full_name')
-      .then(({ data }) => {
-        setSupervisors((data ?? []) as Supervisor[])
-        setLoadingSupervisors(false)
-      })
+    pb.collection('users').getFullList({
+      filter: "role = 'supervisor'",
+      sort: 'full_name',
+    }).then(data => {
+      setSupervisors(data.map(r => ({ id: r.id, full_name: r.full_name as string })))
+      setLoadingSupervisors(false)
+    })
   }, [fetchHospitals, fetchAssignments])
 
-  async function handleAssign(supervisorId: string, hospitalId: number, deptId: string) {
+  async function handleAssign(supervisorId: string, hospitalId: string, deptId: string) {
     if (!appUser) return
-    const record = {
-      supervisor_id: supervisorId,
-      hospital_id: hospitalId,
-      department_id: deptId,
+    const existing = await pb.collection('supervisor_assignments').getFirstListItem(
+      `supervisor = '${supervisorId}'`
+    ).catch(() => null)
+
+    const payload = {
+      supervisor: supervisorId,
+      hospital: hospitalId,
+      department: deptId,
       assigned_by: appUser.id,
       assigned_at: new Date().toISOString(),
     }
-    await supabase.from('supervisor_assignments').upsert(record)
+
+    if (existing) {
+      await pb.collection('supervisor_assignments').update(existing.id, payload)
+    } else {
+      await pb.collection('supervisor_assignments').create(payload)
+    }
+
     setAssignments(prev => {
-      const exists = prev.find(a => a.supervisor_id === supervisorId)
-      if (exists) return prev.map(a => a.supervisor_id === supervisorId ? { ...a, ...record } : a)
-      return [...prev, record]
+      const exists = prev.find(a => a.supervisor === supervisorId)
+      if (exists) return prev.map(a => a.supervisor === supervisorId ? { ...a, hospital: hospitalId, department: deptId } : a)
+      return [...prev, { supervisor: supervisorId, hospital: hospitalId, department: deptId }]
     })
   }
 

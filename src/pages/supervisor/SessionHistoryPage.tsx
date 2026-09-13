@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import { AppShell } from '../../components/layout/AppShell'
 import { DailyAttendance } from '../../components/attendance/DailyAttendance'
 import { Spinner } from '../../components/ui/Spinner'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 
 export function SessionHistoryPage() {
   const { appUser } = useAuth()
@@ -11,12 +11,13 @@ export function SessionHistoryPage() {
 
   useEffect(() => {
     if (!appUser) return
-    supabase
-      .from('supervisor_assignments')
-      .select('department_id')
-      .eq('supervisor_id', appUser.id)
-      .single()
-      .then(({ data }) => setSupervisorDeptId(data?.department_id ?? null))
+    pb.collection('supervisor_assignments').getFirstListItem(
+      `supervisor = '${appUser.id}'`
+    ).then(data => {
+      setSupervisorDeptId(data.department as string ?? null)
+    }).catch(() => {
+      setSupervisorDeptId(null)
+    })
   }, [appUser])
 
   return (

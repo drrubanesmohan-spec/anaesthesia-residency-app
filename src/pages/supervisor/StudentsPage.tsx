@@ -2,14 +2,13 @@ import { useEffect, useState, useCallback } from 'react'
 import { Plus, X, ChevronDown, ChevronUp } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Spinner } from '../../components/ui/Spinner'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 
 interface Group   { id: string; name: string }
 interface Student { id: string; full_name: string }
-interface Lecture { id: string; topic: string; date: string; group_id: string; group?: { name: string } }
-interface Attendance { student_id: string; status: 'present' | 'absent' }
+interface Lecture { id: string; topic: string; date: string; group: string; groupName?: string }
 
 /* ─── Attendance sheet ───────────────────────────────────────── */
 function AttendanceSheet({ lecture, onClose }: { lecture: Lecture; onClose: () => void }) {
@@ -20,13 +19,13 @@ function AttendanceSheet({ lecture, onClose }: { lecture: Lecture; onClose: () =
 
   useEffect(() => {
     async function load() {
-      const [{ data: s }, { data: a }] = await Promise.all([
-        supabase.from('students').select('id, full_name').eq('group_id', lecture.group_id).order('full_name'),
-        supabase.from('lecture_attendance').select('student_id, status').eq('lecture_id', lecture.id),
+      const [studentsData, attData] = await Promise.all([
+        pb.collection('students').getFullList({ filter: `group = '${lecture.group}'`, sort: 'full_name' }),
+        pb.collection('lecture_attendance').getFullList({ filter: `lecture = '${lecture.id}'` }),
       ])
-      setStudents((s ?? []) as Student[])
+      setStudents(studentsData.map(r => ({ id: r.id, full_name: r.full_name as string })))
       const map: Record<string, 'present' | 'absent'> = {}
-      ;(a ?? []).forEach((r: Attendance) => { map[r.student_id] = r.status })
+      attData.forEach(r => { map[r.student as string] = r.status as 'present' | 'absent' })
       setAttendance(map)
       setLoading(false)
     }
@@ -39,12 +38,17 @@ function AttendanceSheet({ lecture, onClose }: { lecture: Lecture; onClose: () =
 
   async function save() {
     setSaving(true)
-    const rows = students.map(s => ({
-      lecture_id: lecture.id,
-      student_id: s.id,
-      status: attendance[s.id] ?? 'absent',
-    }))
-    await supabase.from('lecture_attendance').upsert(rows, { onConflict: 'lecture_id,student_id' })
+    for (const s of students) {
+      const status = attendance[s.id] ?? 'absent'
+      const existing = await pb.collection('lecture_attendance').getFirstListItem(
+        `lecture = '${lecture.id}' && student = '${s.id}'`
+      ).catch(() => null)
+      if (existing) {
+        await pb.collection('lecture_attendance').update(existing.id, { status })
+      } else {
+        await pb.collection('lecture_attendance').create({ lecture: lecture.id, student: s.id, status })
+      }
+    }
     setSaving(false)
     onClose()
   }
@@ -59,18 +63,16 @@ function AttendanceSheet({ lecture, onClose }: { lecture: Lecture; onClose: () =
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-brand">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 bg-brand-dark border-b border-stone-800">
         <div>
           <p className="text-sm font-semibold text-white">{lecture.topic}</p>
-          <p className="text-xs text-stone-400 mt-0.5">{(lecture.group as unknown as { name: string })?.name} · {lecture.date}</p>
+          <p className="text-xs text-stone-400 mt-0.5">{lecture.groupName} · {lecture.date}</p>
         </div>
         <button onClick={onClose} className="text-stone-400 hover:text-white">
           <X size={20} />
         </button>
       </div>
 
-      {/* Summary */}
       <div className="flex gap-4 px-4 py-3 border-b border-stone-200 bg-white">
         <div className="text-center flex-1">
           <p className="text-xl font-bold text-emerald-500">{present}</p>
@@ -86,7 +88,6 @@ function AttendanceSheet({ lecture, onClose }: { lecture: Lecture; onClose: () =
         </div>
       </div>
 
-      {/* Student list */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
         {students.length === 0 && (
           <p className="text-center text-xs text-stone-400 pt-8 italic">No students in this group.</p>
@@ -112,7 +113,6 @@ function AttendanceSheet({ lecture, onClose }: { lecture: Lecture; onClose: () =
         })}
       </div>
 
-      {/* Save */}
       <div className="px-4 pb-8 pt-3 border-t border-stone-200 bg-white">
         <button
           onClick={save}
@@ -144,27 +144,34 @@ function NewLectureModal({
   const [error,   setError]   = useState('')
 
   useEffect(() => {
-    supabase
-      .from('group_supervisors')
-      .select('group_id, student_groups:group_id(id, name)')
-      .eq('supervisor_id', supervisorId)
-      .then(({ data }) => {
-        const gs = (data ?? []) as unknown as { student_groups: Group }[]
-        setGroups(gs.map(r => r.student_groups).filter(Boolean))
-      })
+    pb.collection('group_supervisors').getFullList({
+      filter: `supervisor = '${supervisorId}'`,
+      expand: 'group',
+    }).then(data => {
+      const gs = data
+        .map(r => r.expand?.group as Record<string, unknown> | undefined)
+        .filter((g): g is Record<string, unknown> => g !== null && g !== undefined)
+      setGroups(gs.map(g => ({ id: g.id as string, name: g.name as string })))
+    })
   }, [supervisorId])
 
   async function submit() {
     if (!groupId || !topic.trim()) { setError('Group and topic are required'); return }
     setSaving(true)
-    const { data, error: err } = await supabase
-      .from('lectures')
-      .insert({ group_id: groupId, supervisor_id: supervisorId, topic: topic.trim(), date })
-      .select('*, group:group_id(name)')
-      .single()
-    if (err) { setError(err.message); setSaving(false); return }
-    onSaved(data as unknown as Lecture)
-    onClose()
+    try {
+      const rec = await pb.collection('lectures').create({
+        group: groupId,
+        supervisor: supervisorId,
+        topic: topic.trim(),
+        date,
+      })
+      const groupName = groups.find(g => g.id === groupId)?.name ?? ''
+      onSaved({ id: rec.id, topic: rec.topic as string, date: rec.date as string, group: groupId, groupName })
+      onClose()
+    } catch (e) {
+      setError((e as Error).message)
+      setSaving(false)
+    }
   }
 
   return (
@@ -223,19 +230,28 @@ export function StudentsPage() {
 
   const load = useCallback(async () => {
     if (!appUser) return
-    const { data } = await supabase
-      .from('lectures')
-      .select('*, group:group_id(name)')
-      .eq('supervisor_id', appUser.id)
-      .order('date', { ascending: false })
-    setLectures((data ?? []) as unknown as Lecture[])
+    const data = await pb.collection('lectures').getFullList({
+      filter: `supervisor = '${appUser.id}'`,
+      sort: '-date',
+      expand: 'group',
+    })
+    setLectures(data.map(r => {
+      const ex = r.expand as Record<string, Record<string, unknown>> | undefined
+      return {
+        id: r.id,
+        topic: r.topic as string,
+        date: r.date as string,
+        group: r.group as string,
+        groupName: ex?.group?.name as string ?? '—',
+      }
+    }))
     setLoading(false)
   }, [appUser])
 
   useEffect(() => { load() }, [load])
 
   async function deleteLecture(id: string) {
-    await supabase.from('lectures').delete().eq('id', id)
+    await pb.collection('lectures').delete(id)
     setLectures(prev => prev.filter(l => l.id !== id))
   }
 
@@ -247,7 +263,6 @@ export function StudentsPage() {
 
   return (
     <AppShell title="Students">
-      {/* Header row */}
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs text-stone-400 uppercase tracking-wide font-medium">Your Lectures</p>
         <button
@@ -265,7 +280,6 @@ export function StudentsPage() {
       <div className="space-y-2">
         {lectures.map(l => {
           const open = expanded === l.id
-          const grpName = (l.group as unknown as { name: string })?.name ?? '—'
           return (
             <div key={l.id} className="rounded-2xl border border-stone-200 bg-white overflow-hidden">
               <div
@@ -274,7 +288,7 @@ export function StudentsPage() {
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-stone-900">{l.topic}</p>
-                  <p className="text-xs text-stone-400 mt-0.5">{grpName} · {l.date}</p>
+                  <p className="text-xs text-stone-400 mt-0.5">{l.groupName} · {l.date}</p>
                 </div>
                 {open ? <ChevronUp size={16} className="text-stone-400 mt-0.5 shrink-0" /> : <ChevronDown size={16} className="text-stone-400 mt-0.5 shrink-0" />}
               </div>

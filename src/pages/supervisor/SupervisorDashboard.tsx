@@ -9,7 +9,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { useSessions } from '../../hooks/useSessions'
 import { useHospitals } from '../../hooks/useHospitals'
 import { ResidentAssignments } from '../../components/assignments/ResidentAssignments'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import { Calendar, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Hospital } from '../../hooks/useHospitals'
 
@@ -24,7 +24,6 @@ function HospitalRow({ hospital }: { hospital: Hospital }) {
         <span className="text-stone-400 shrink-0">
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </span>
-        <span className="text-xs text-stone-400 w-5 shrink-0">{hospital.id}</span>
         <span className="flex-1 text-left text-sm text-stone-900">{hospital.name}</span>
         <span className="text-xs text-stone-400">{hospital.departments.length} dept{hospital.departments.length !== 1 ? 's' : ''}</span>
       </button>
@@ -75,17 +74,19 @@ export function SupervisorDashboard() {
   useEffect(() => {
     if (appUser) {
       fetchForSupervisor(appUser.id)
-      supabase
-        .from('supervisor_assignments')
-        .select('department_id')
-        .eq('supervisor_id', appUser.id)
-        .single()
-        .then(({ data }) => setSupervisorDeptId(data?.department_id ?? null))
+      pb.collection('supervisor_assignments').getFirstListItem(
+        `supervisor = '${appUser.id}'`
+      ).then(data => {
+        setSupervisorDeptId(data.department as string ?? null)
+      }).catch(() => {
+        setSupervisorDeptId(null)
+      })
     }
   }, [appUser, fetchForSupervisor])
 
-  const upcoming = sessions.filter(s => !s.is_cancelled && s.scheduled_date >= new Date().toISOString().slice(0, 10))
-  const past = sessions.filter(s => s.is_cancelled || s.scheduled_date < new Date().toISOString().slice(0, 10))
+  const today = new Date().toISOString().slice(0, 10)
+  const upcoming = sessions.filter(s => !s.is_cancelled && s.scheduled_date >= today)
+  const past = sessions.filter(s => s.is_cancelled || s.scheduled_date < today)
 
   return (
     <AppShell title="Hospital" showLogout>

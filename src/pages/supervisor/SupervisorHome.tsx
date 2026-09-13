@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { AppShell } from '../../components/layout/AppShell'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 
 interface DeptInfo {
   hospital_name: string
@@ -23,39 +23,40 @@ export function SupervisorHome() {
   useEffect(() => {
     if (!appUser) return
 
-    supabase
-      .from('supervisor_assignments')
-      .select('hospital_id, department_id, hospitals:hospital_id(name), hospital_departments:department_id(name)')
-      .eq('supervisor_id', appUser.id)
-      .single()
-      .then(async ({ data }) => {
-        if (!data) return
+    async function load() {
+      if (!appUser) return
+      const sa = await pb.collection('supervisor_assignments').getFirstListItem(
+        `supervisor = '${appUser.id}'`,
+        { expand: 'hospital,department' }
+      ).catch(() => null)
 
-        const h = data as unknown as { hospitals: { name: string }; hospital_departments: { name: string }; department_id: string }
-        setDeptInfo({
-          hospital_name: h.hospitals?.name ?? '',
-          dept_name: h.hospital_departments?.name ?? '',
-        })
+      if (!sa) return
 
-        if (!h.department_id) return
-
-        // Fetch residents + attendance in parallel
-        const [{ data: residents }, ] = await Promise.all([
-          supabase.from('resident_assignments').select('resident_id').eq('department_id', h.department_id),
-        ])
-        if (!residents || residents.length === 0) return
-        const ids = residents.map((r: { resident_id: string }) => r.resident_id)
-
-        const { data: att } = await supabase
-          .from('daily_attendance')
-          .select('status')
-          .eq('date', today)
-          .in('resident_id', ids)
-
-        const present = (att ?? []).filter((a: { status: string }) => a.status === 'present').length
-        const absent  = (att ?? []).filter((a: { status: string }) => a.status === 'absent').length
-        setSummary({ present, absent, total: ids.length })
+      const expanded = sa.expand as Record<string, Record<string, unknown>> | undefined
+      setDeptInfo({
+        hospital_name: expanded?.hospital?.name as string ?? '',
+        dept_name:     expanded?.department?.name as string ?? '',
       })
+
+      const deptId = sa.department as string
+      if (!deptId) return
+
+      const residentAssignments = await pb.collection('resident_assignments').getFullList({
+        filter: `department = '${deptId}'`,
+      })
+      const ids = residentAssignments.map(r => r.resident as string)
+      if (ids.length === 0) return
+
+      const attRecords = await pb.collection('daily_attendance').getFullList({
+        filter: `date = '${today}'`,
+      })
+      const relevant = attRecords.filter(a => ids.includes(a.resident as string))
+      const present = relevant.filter(a => a.status === 'present').length
+      const absent  = relevant.filter(a => a.status === 'absent').length
+      setSummary({ present, absent, total: ids.length })
+    }
+
+    load()
   }, [appUser, today])
 
   const hour = new Date().getHours()

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { ChevronLeft, ChevronRight, Plus, Trash2, X, ChevronDown } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Spinner } from '../../components/ui/Spinner'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 
@@ -16,9 +16,9 @@ interface CalendarEvent {
 }
 
 interface TimetableEvent {
-  id: string        // synthetic: "tt-{groupId}-{dow}"
+  id: string
   title: string
-  date: string      // the specific date for this occurrence
+  date: string
   groupName: string
 }
 
@@ -34,7 +34,7 @@ const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const SS_YEAR     = 'cal_year'
 const SS_MONTH    = 'cal_month'
 const SS_SELECTED = 'cal_selected'
-const SS_EVENTS   = 'cal_events_'   // + "YYYY-MM" key
+const SS_EVENTS   = 'cal_events_'
 const SS_DRAFT_T  = 'cal_draft_title'
 const SS_DRAFT_D  = 'cal_draft_desc'
 const SS_DRAFT_ED = 'cal_draft_enddate'
@@ -60,7 +60,7 @@ function monthKey(y: number, m: number) {
   return `${y}-${String(m + 1).padStart(2, '0')}`
 }
 
-/* ─── Add event modal — persists draft across window switches ─────── */
+/* ─── Add event modal ─────────────────────────────────────────────── */
 
 function AddEventModal({
   date,
@@ -81,7 +81,6 @@ function AddEventModal({
   function handleTitle(v: string)   { setTitle(v);   ssSet(SS_DRAFT_T, v) }
   function handleDesc(v: string)    { setDesc(v);    ssSet(SS_DRAFT_D, v) }
   function handleEndDate(v: string) {
-    // end must be >= start
     const safe = v < date ? date : v
     setEndDate(safe)
     ssSet(SS_DRAFT_ED, safe)
@@ -94,21 +93,28 @@ function AddEventModal({
   async function submit() {
     if (!title.trim()) { setError('Title is required'); return }
     setSaving(true)
-    const { data, error: err } = await supabase
-      .from('calendar_events')
-      .insert({
+    try {
+      const rec = await pb.collection('calendar_events').create({
         title: title.trim(),
         date,
         end_date: endDate !== date ? endDate : null,
         description: desc.trim() || null,
         created_by: appUser?.id,
       })
-      .select()
-      .single()
-    if (err) { setError(err.message); setSaving(false); return }
-    ssRemove(SS_DRAFT_T); ssRemove(SS_DRAFT_D); ssRemove(SS_DRAFT_ED); ssRemove(SS_MODAL)
-    onSaved(data as CalendarEvent)
-    onClose()
+      ssRemove(SS_DRAFT_T); ssRemove(SS_DRAFT_D); ssRemove(SS_DRAFT_ED); ssRemove(SS_MODAL)
+      onSaved({
+        id: rec.id,
+        title: rec.title as string,
+        date: rec.date as string,
+        end_date: rec.end_date as string | null,
+        description: rec.description as string | null,
+        created_by: rec.created_by as string | null,
+      })
+      onClose()
+    } catch (e) {
+      setError((e as Error).message)
+      setSaving(false)
+    }
   }
 
   function handleClose() {
@@ -136,16 +142,12 @@ function AddEventModal({
             className="w-full rounded-xl bg-stone-100 px-4 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 outline-none focus:ring-1 focus:ring-blue-500"
           />
 
-          {/* Date range row */}
           <div className="rounded-xl bg-stone-100 overflow-hidden">
-            {/* Start date */}
             <div className="flex items-center px-4 py-2.5 border-b border-stone-300">
               <span className="text-xs text-stone-500 w-14 shrink-0">Starts</span>
               <span className="flex-1 text-sm text-stone-900">{startLabel}</span>
-              {/* Start date is fixed to selected day — shown as read-only */}
               <span className="text-xs text-stone-400 italic">selected day</span>
             </div>
-            {/* End date */}
             <div className="flex items-center px-4 py-2.5">
               <span className="text-xs text-stone-500 w-14 shrink-0">Ends</span>
               <span className="flex-1 text-sm text-stone-900">{isMultiDay ? endLabel : startLabel}</span>
@@ -189,7 +191,6 @@ export function CalendarPage() {
 
   const now = new Date()
 
-  // Restore from sessionStorage on mount
   const [year,     setYearRaw]     = useState<number>(() => parseInt(ss(SS_YEAR)  ?? String(now.getFullYear())))
   const [month,    setMonthRaw]    = useState<number>(() => parseInt(ss(SS_MONTH) ?? String(now.getMonth())))
   const [selected, setSelectedRaw] = useState<string>(() => ss(SS_SELECTED) ?? todayStr())
@@ -207,7 +208,6 @@ export function CalendarPage() {
   const [deleting,   setDeleting]   = useState<string | null>(null)
   const [groups,     setGroups]     = useState<GroupSchedule[]>([])
 
-  // Persist state helpers
   function setYear(y: number)     { setYearRaw(y);  ssSet(SS_YEAR, String(y)) }
   function setMonth(m: number)    { setMonthRaw(m); ssSet(SS_MONTH, String(m)) }
   function setSelected(d: string) { setSelectedRaw(d); ssSet(SS_SELECTED, d) }
@@ -215,36 +215,43 @@ export function CalendarPage() {
   function openModal()  { ssSet(SS_MODAL, '1'); setShowModal(true) }
   function closeModal() { ssRemove(SS_MODAL);   setShowModal(false) }
 
-  // Load events + group timetables for current month
   const isFetching = useRef(false)
   const loadMonth = useCallback(async () => {
     if (isFetching.current) return
     isFetching.current = true
     const firstDay = isoDate(year, month, 1)
     const lastDay  = isoDate(year, month, new Date(year, month + 1, 0).getDate())
-    const [{ data }, { data: gData }, { data: ttData }] = await Promise.all([
-      supabase
-        .from('calendar_events')
-        .select('id, title, date, end_date, description, created_by')
-        .lte('date', lastDay)
-        .or(`end_date.gte.${firstDay},end_date.is.null`)
-        .order('date'),
-      supabase
-        .from('student_groups')
-        .select('id, name, start_date, end_date')
-        .not('start_date', 'is', null),
-      supabase
-        .from('group_timetable')
-        .select('id, group_id, day_of_week, subject'),
+
+    const [eventsData, groupsData, ttData] = await Promise.all([
+      pb.collection('calendar_events').getFullList({
+        filter: `date <= '${lastDay}' && (end_date = '' || end_date = null || end_date >= '${firstDay}')`,
+        sort: 'date',
+      }),
+      pb.collection('student_groups').getFullList({
+        filter: "start_date != ''",
+      }),
+      pb.collection('group_timetable').getFullList(),
     ])
-    const fresh = (data ?? []) as CalendarEvent[]
+
+    const fresh: CalendarEvent[] = eventsData.map(r => ({
+      id: r.id,
+      title: r.title as string,
+      date: r.date as string,
+      end_date: r.end_date as string | null,
+      description: r.description as string | null,
+      created_by: r.created_by as string | null,
+    }))
     setEvents(fresh)
     ssSet(SS_EVENTS + monthKey(year, month), JSON.stringify(fresh))
 
-    // Build group schedule objects
-    const gs: GroupSchedule[] = (gData ?? []).map((g: { id: string; name: string; start_date: string | null; end_date: string | null }) => ({
-      ...g,
-      timetable: (ttData ?? []).filter((t: { group_id: string }) => t.group_id === g.id) as GroupSchedule['timetable'],
+    const gs: GroupSchedule[] = groupsData.map(g => ({
+      id: g.id,
+      name: g.name as string,
+      start_date: g.start_date as string | null,
+      end_date: g.end_date as string | null,
+      timetable: ttData
+        .filter(t => t.group === g.id)
+        .map(t => ({ id: t.id, day_of_week: t.day_of_week as number, subject: t.subject as string })),
     }))
     setGroups(gs)
 
@@ -254,7 +261,6 @@ export function CalendarPage() {
 
   useEffect(() => { loadMonth() }, [loadMonth])
 
-  // Refresh events when returning to the tab/window
   useEffect(() => {
     function onVisible() {
       if (document.visibilityState === 'visible') loadMonth()
@@ -263,7 +269,6 @@ export function CalendarPage() {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [loadMonth])
 
-  // Build set of all dates covered by any event (including multi-day spans)
   const eventDates = new Set<string>()
   for (const ev of events) {
     const start = ev.date
@@ -276,7 +281,6 @@ export function CalendarPage() {
     }
   }
 
-  // Synthesise timetable events for every day in the current month
   const timetableDates = new Set<string>()
   const timetableByDate = new Map<string, TimetableEvent[]>()
   const daysInMonthForTT = new Date(year, month + 1, 0).getDate()
@@ -299,7 +303,6 @@ export function CalendarPage() {
     }
   }
 
-  // Events visible on selected day
   const selectedEvents = events.filter(e => {
     const end = e.end_date ?? e.date
     return e.date <= selected && end >= selected
@@ -308,7 +311,7 @@ export function CalendarPage() {
 
   async function deleteEvent(id: string) {
     setDeleting(id)
-    await supabase.from('calendar_events').delete().eq('id', id)
+    await pb.collection('calendar_events').delete(id)
     const updated = events.filter(e => e.id !== id)
     setEvents(updated)
     ssSet(SS_EVENTS + monthKey(year, month), JSON.stringify(updated))
@@ -338,7 +341,6 @@ export function CalendarPage() {
     <AppShell title="Calendar">
       <div className="flex flex-col gap-4">
 
-        {/* Month grid */}
         <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200">
             <button
@@ -348,7 +350,6 @@ export function CalendarPage() {
               <ChevronLeft size={18} />
             </button>
 
-            {/* Month/year label — tapping opens picker */}
             <button
               onClick={() => { setPickYear(year); setShowPicker(v => !v) }}
               className="flex items-center gap-1 text-sm font-semibold text-stone-900 hover:text-blue-300 transition-colors"
@@ -365,10 +366,8 @@ export function CalendarPage() {
             </button>
           </div>
 
-          {/* Month/year picker dropdown */}
           {showPicker && (
             <div className="border-b border-stone-200 px-3 pt-3 pb-4 bg-stone-100">
-              {/* Year row */}
               <div className="flex items-center justify-between mb-3">
                 <button
                   onClick={() => setPickYear(y => y - 1)}
@@ -384,7 +383,6 @@ export function CalendarPage() {
                   <ChevronRight size={16} />
                 </button>
               </div>
-              {/* Month grid 3×4 */}
               <div className="grid grid-cols-4 gap-1">
                 {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => {
                   const isCurrent = pickYear === year && i === month
@@ -411,7 +409,6 @@ export function CalendarPage() {
             </div>
           )}
 
-          {/* DOW row */}
           <div className="grid grid-cols-7 px-2 pt-3">
             {DOW.map((d, i) => (
               <div key={i} className="flex justify-center">
@@ -420,7 +417,6 @@ export function CalendarPage() {
             ))}
           </div>
 
-          {/* Day cells */}
           <div className="grid grid-cols-7 px-2 pb-4 pt-1 relative min-h-[10rem]">
             {loading && (
               <div className="absolute inset-0 flex items-center justify-center bg-brand-light/70 rounded-b-2xl">
@@ -462,7 +458,6 @@ export function CalendarPage() {
           </div>
         </div>
 
-        {/* Selected day events */}
         <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200">
             <span className="text-xs font-semibold text-stone-600">{selectedLabel}</span>

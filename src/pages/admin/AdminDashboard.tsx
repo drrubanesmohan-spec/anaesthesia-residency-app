@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Card } from '../../components/ui/Card'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import { useAuth } from '../../context/AuthContext'
 import { cacheFetch } from '../../lib/cache'
 
@@ -20,16 +20,16 @@ export function AdminDashboard() {
   useEffect(() => {
     cacheFetch(`admin-dashboard-${today}`, async () => {
       const [r, sv, present, absent] = await Promise.all([
-        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'resident'),
-        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'supervisor'),
-        supabase.from('daily_attendance').select('id', { count: 'exact', head: true }).eq('date', today).eq('status', 'present'),
-        supabase.from('daily_attendance').select('id', { count: 'exact', head: true }).eq('date', today).eq('status', 'absent'),
+        pb.collection('users').getList(1, 1, { filter: "role = 'resident'" }),
+        pb.collection('users').getList(1, 1, { filter: "role = 'supervisor'" }),
+        pb.collection('daily_attendance').getList(1, 1, { filter: `date = '${today}' && status = 'present'` }),
+        pb.collection('daily_attendance').getList(1, 1, { filter: `date = '${today}' && status = 'absent'` }),
       ])
       return {
-        residents:   r.count       ?? 0,
-        supervisors: sv.count      ?? 0,
-        present:     present.count ?? 0,
-        absent:      absent.count  ?? 0,
+        residents:   r.totalItems,
+        supervisors: sv.totalItems,
+        present:     present.totalItems,
+        absent:      absent.totalItems,
       }
     }).then(setStats)
   }, [today])

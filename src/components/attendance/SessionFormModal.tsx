@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Modal } from '../ui/Modal'
 import { Input } from '../ui/Input'
 import { Button } from '../ui/Button'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import type { Session, SessionType } from '../../types/domain'
 import type { AppUser } from '../../types/auth'
 
@@ -37,13 +37,10 @@ export function SessionFormModal({ open, onClose, onSaved, session, currentUser 
 
   useEffect(() => {
     if (!open) return
-    // Fetch supervisors
-    supabase
-      .from('profiles')
-      .select('id, full_name')
-      .eq('role', 'supervisor')
-      .order('full_name')
-      .then(({ data }) => setSupervisors(data ?? []))
+    pb.collection('users').getFullList({
+      filter: "role = 'supervisor'",
+      sort: 'full_name',
+    }).then(data => setSupervisors(data.map(r => ({ id: r.id, full_name: r.full_name as string }))))
 
     if (session) {
       setTitle(session.title)
@@ -73,17 +70,22 @@ export function SessionFormModal({ open, onClose, onSaved, session, currentUser 
       scheduled_date: date,
       start_time: startTime || null,
       end_time: endTime || null,
-      supervisor_id: supervisorId || null,
+      supervisor: supervisorId || null,
       notes: notes || null,
       created_by: currentUser.id,
     }
 
-    const { error } = session
-      ? await supabase.from('sessions').update(payload).eq('id', session.id)
-      : await supabase.from('sessions').insert(payload)
-
-    if (error) setError(error.message)
-    else { onSaved(); onClose() }
+    try {
+      if (session) {
+        await pb.collection('sessions').update(session.id, payload)
+      } else {
+        await pb.collection('sessions').create(payload)
+      }
+      onSaved()
+      onClose()
+    } catch (e) {
+      setError((e as Error).message)
+    }
     setLoading(false)
   }
 

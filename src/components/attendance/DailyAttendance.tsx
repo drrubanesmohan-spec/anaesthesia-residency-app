@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import { useAuth } from '../../context/AuthContext'
 import { Spinner } from '../ui/Spinner'
 import { ChevronDown, ChevronUp, CheckCircle2, XCircle } from 'lucide-react'
@@ -81,33 +81,36 @@ export function DailyAttendance({ supervisorDeptId }: { supervisorDeptId: string
   const [loading, setLoading] = useState(true)
   const [collapsed, setCollapsed] = useState(false)
 
-  // Fetch residents in this supervisor's department
   useEffect(() => {
     if (!supervisorDeptId) { setLoading(false); return }
-    supabase
-      .from('resident_assignments')
-      .select('resident_id, profiles:resident_id(id, full_name)')
-      .eq('department_id', supervisorDeptId)
-      .then(({ data }) => {
-        const list = ((data ?? []) as unknown as { profiles: Resident }[])
-          .map(r => r.profiles)
-          .filter(Boolean)
-          .sort((a, b) => a.full_name.localeCompare(b.full_name))
-        setResidents(list)
-        setLoading(false)
-      })
+    pb.collection('resident_assignments').getFullList({
+      filter: `department = '${supervisorDeptId}'`,
+      expand: 'resident',
+    }).then(data => {
+      const list = data
+        .map(r => {
+          const res = r.expand?.resident as Record<string, unknown> | undefined
+          if (!res) return null
+          return { id: res.id as string, full_name: res.full_name as string }
+        })
+        .filter((r): r is Resident => r !== null)
+        .sort((a, b) => a.full_name.localeCompare(b.full_name))
+      setResidents(list)
+      setLoading(false)
+    })
   }, [supervisorDeptId])
 
-  // Fetch attendance records for selected date
   const fetchRecords = useCallback(async (date: string) => {
     if (residents.length === 0) return
-    const ids = residents.map(r => r.id)
-    const { data } = await supabase
-      .from('daily_attendance')
-      .select('resident_id, date, status')
-      .eq('date', date)
-      .in('resident_id', ids)
-    setRecords((data ?? []) as DailyRecord[])
+    const residentIds = new Set(residents.map(r => r.id))
+    const data = await pb.collection('daily_attendance').getFullList({
+      filter: `date = '${date}'`,
+    })
+    setRecords(
+      data
+        .filter(a => residentIds.has(a.resident as string))
+        .map(a => ({ resident_id: a.resident as string, date: a.date as string, status: a.status as 'present' | 'absent' }))
+    )
   }, [residents])
 
   useEffect(() => {
@@ -118,24 +121,33 @@ export function DailyAttendance({ supervisorDeptId }: { supervisorDeptId: string
     if (!appUser) return
 
     const now = new Date().toISOString()
+    const existing = await pb.collection('daily_attendance').getFirstListItem(
+      `resident = '${residentId}' && date = '${selectedDate}'`
+    ).catch(() => null)
 
-    // Upsert current state
-    await supabase.from('daily_attendance').upsert({
-      resident_id: residentId,
+    const payload = {
+      resident: residentId,
       date: selectedDate,
       status,
       marked_by: appUser.id,
       marked_at: now,
-    }, { onConflict: 'resident_id,date' })
+    }
 
-    // Always log the change
-    await supabase.from('daily_attendance_logs').insert({
-      resident_id: residentId,
-      date: selectedDate,
-      status,
-      marked_by: appUser.id,
-      marked_at: now,
-    })
+    if (existing) {
+      await pb.collection('daily_attendance').update(existing.id, payload)
+    } else {
+      await pb.collection('daily_attendance').create(payload)
+    }
+
+    try {
+      await pb.collection('daily_attendance_logs').create({
+        resident: residentId,
+        date: selectedDate,
+        status,
+        marked_by: appUser.id,
+        marked_at: now,
+      })
+    } catch { /* log collection may not exist */ }
 
     setRecords(prev => {
       const exists = prev.find(r => r.resident_id === residentId && r.date === selectedDate)

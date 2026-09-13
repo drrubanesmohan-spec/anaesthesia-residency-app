@@ -20,9 +20,9 @@ function HospitalRow({
   onDeleteDept,
 }: {
   hospital: Hospital
-  onRename: (id: number, name: string) => Promise<void>
-  onAddDept: (hospitalId: number, name: string) => Promise<void>
-  onDeleteDept: (deptId: string, hospitalId: number) => Promise<void>
+  onRename: (id: string, name: string) => Promise<void>
+  onAddDept: (hospitalId: string, name: string) => Promise<void>
+  onDeleteDept: (deptId: string, hospitalId: string) => Promise<void>
 }) {
   const [expanded, setExpanded] = useState(false)
   const [editingName, setEditingName] = useState(false)

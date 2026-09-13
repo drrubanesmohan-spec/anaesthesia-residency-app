@@ -2,14 +2,14 @@ import { useEffect, useState, useCallback } from 'react'
 import { Plus, X, Trash2, Pencil } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Spinner } from '../../components/ui/Spinner'
-import { supabase } from '../../lib/supabaseClient'
+import { pb } from '../../lib/pbClient'
 import { cn } from '../../lib/utils'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 interface Group   { id: string; name: string; start_date: string | null; end_date: string | null }
-interface TTEntry { id: string; group_id: string; day_of_week: number; subject: string; supervisor_id: string | null; supervisor?: { full_name: string } | null }
-interface Student { id: string; full_name: string; group_id: string | null }
+interface TTEntry { id: string; group: string; day_of_week: number; subject: string; supervisor: string | null; supervisorName?: string | null }
+interface Student { id: string; full_name: string; group: string | null }
 interface Profile { id: string; full_name: string }
 
 type Seg = 'groups' | 'students'
@@ -37,68 +37,85 @@ function GroupEditModal({
   const [loading,   setLoading]   = useState(true)
   const [saving,    setSaving]    = useState(false)
 
-  // new entry form
   const [dow,     setDow]     = useState(1)
   const [subject, setSubject] = useState('')
   const [supId,   setSupId]   = useState('')
 
   useEffect(() => {
-    supabase
-      .from('group_timetable')
-      .select('*, supervisor:supervisor_id(full_name)')
-      .eq('group_id', group.id)
-      .order('day_of_week')
-      .then(({ data }) => { setEntries((data ?? []) as unknown as TTEntry[]); setLoading(false) })
+    pb.collection('group_timetable').getFullList({
+      filter: `group = '${group.id}'`,
+      sort: 'day_of_week',
+      expand: 'supervisor',
+    }).then(data => {
+      setEntries(data.map(r => {
+        const ex = r.expand as Record<string, Record<string, unknown>> | undefined
+        return {
+          id: r.id,
+          group: r.group as string,
+          day_of_week: r.day_of_week as number,
+          subject: r.subject as string,
+          supervisor: r.supervisor as string | null,
+          supervisorName: ex?.supervisor ? ex.supervisor.full_name as string : null,
+        }
+      }))
+      setLoading(false)
+    })
   }, [group.id])
 
   async function saveGroup() {
     setSaving(true)
-    const { data } = await supabase
-      .from('student_groups')
-      .update({ name: name.trim() || group.name, start_date: startDate || null, end_date: endDate || null })
-      .eq('id', group.id)
-      .select()
-      .single()
+    const rec = await pb.collection('student_groups').update(group.id, {
+      name: name.trim() || group.name,
+      start_date: startDate || null,
+      end_date: endDate || null,
+    })
     setSaving(false)
-    if (data) onSaved(data as Group)
+    onSaved({ id: rec.id, name: rec.name as string, start_date: rec.start_date as string | null, end_date: rec.end_date as string | null })
   }
 
   async function addEntry() {
     if (!subject.trim()) return
-    const { data } = await supabase
-      .from('group_timetable')
-      .insert({ group_id: group.id, day_of_week: dow, subject: subject.trim(), supervisor_id: supId || null })
-      .select('*, supervisor:supervisor_id(full_name)')
-      .single()
-    if (data) setEntries(prev => [...prev, data as unknown as TTEntry].sort((a, b) => a.day_of_week - b.day_of_week))
+    const rec = await pb.collection('group_timetable').create({
+      group: group.id,
+      day_of_week: dow,
+      subject: subject.trim(),
+      supervisor: supId || null,
+    })
+    const sup = supervisors.find(s => s.id === supId)
+    setEntries(prev => [...prev, {
+      id: rec.id,
+      group: group.id,
+      day_of_week: rec.day_of_week as number,
+      subject: rec.subject as string,
+      supervisor: rec.supervisor as string | null,
+      supervisorName: sup?.full_name ?? null,
+    }].sort((a, b) => a.day_of_week - b.day_of_week))
     setSubject('')
     setSupId('')
   }
 
   async function updateEntrySupervisor(id: string, sid: string) {
-    await supabase.from('group_timetable').update({ supervisor_id: sid || null }).eq('id', id)
+    await pb.collection('group_timetable').update(id, { supervisor: sid || null })
     const sup = supervisors.find(s => s.id === sid)
     setEntries(prev => prev.map(e => e.id === id
-      ? { ...e, supervisor_id: sid || null, supervisor: sup ? { full_name: sup.full_name } : null }
+      ? { ...e, supervisor: sid || null, supervisorName: sup?.full_name ?? null }
       : e
     ))
   }
 
   async function removeEntry(id: string) {
-    await supabase.from('group_timetable').delete().eq('id', id)
+    await pb.collection('group_timetable').delete(id)
     setEntries(prev => prev.filter(e => e.id !== id))
   }
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-brand">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 bg-brand-dark border-b border-stone-800">
         <p className="text-sm font-semibold text-white">Edit Group</p>
         <button onClick={onClose} className="text-stone-400 hover:text-white"><X size={20} /></button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
-        {/* Group name */}
         <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Group Name</p>
           <input
@@ -108,7 +125,6 @@ function GroupEditModal({
           />
         </div>
 
-        {/* Date range */}
         <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Date Range</p>
           <div className="rounded-xl bg-white border border-stone-200 overflow-hidden">
@@ -125,7 +141,6 @@ function GroupEditModal({
           </div>
         </div>
 
-        {/* Timetable */}
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Timetable</p>
 
@@ -145,7 +160,7 @@ function GroupEditModal({
                   <div className="flex items-center gap-2 pl-10">
                     <span className="text-xs text-stone-400 shrink-0">Supervisor</span>
                     <select
-                      value={e.supervisor_id ?? ''}
+                      value={e.supervisor ?? ''}
                       onChange={ev => updateEntrySupervisor(e.id, ev.target.value)}
                       className="flex-1 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-700 px-2 py-1 outline-none"
                     >
@@ -153,13 +168,12 @@ function GroupEditModal({
                       {supervisors.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
                     </select>
                   </div>
-                  {e.supervisor && (
-                    <p className="text-[10px] text-stone-400 mt-1 pl-10">{(e.supervisor as { full_name: string }).full_name}</p>
+                  {e.supervisorName && (
+                    <p className="text-[10px] text-stone-400 mt-1 pl-10">{e.supervisorName}</p>
                   )}
                 </div>
               ))}
 
-              {/* Add new entry */}
               <div className="rounded-xl bg-stone-50 border border-stone-200 overflow-hidden">
                 <div className="flex items-center px-3 py-2 border-b border-stone-100">
                   <span className="text-xs text-stone-400 w-16 shrink-0">Day</span>
@@ -196,7 +210,6 @@ function GroupEditModal({
         </div>
       </div>
 
-      {/* Save */}
       <div className="px-4 pb-8 pt-3 border-t border-stone-200 bg-white">
         <button
           onClick={saveGroup}
@@ -220,14 +233,14 @@ function GroupsSegment() {
   const [editing,     setEditing]     = useState<Group | null>(null)
 
   const load = useCallback(async () => {
-    const [{ data: g }, { data: s }, { data: p }] = await Promise.all([
-      supabase.from('student_groups').select('*').order('name'),
-      supabase.from('students').select('id, full_name, group_id'),
-      supabase.from('profiles').select('id, full_name').in('role', ['supervisor', 'admin']).order('full_name'),
+    const [gData, sData, pData] = await Promise.all([
+      pb.collection('student_groups').getFullList({ sort: 'name' }),
+      pb.collection('students').getFullList(),
+      pb.collection('users').getFullList({ filter: "role = 'supervisor' || role = 'admin'", sort: 'full_name' }),
     ])
-    setGroups((g ?? []) as Group[])
-    setStudents((s ?? []) as Student[])
-    setSupervisors((p ?? []) as Profile[])
+    setGroups(gData.map(r => ({ id: r.id, name: r.name as string, start_date: r.start_date as string | null, end_date: r.end_date as string | null })))
+    setStudents(sData.map(r => ({ id: r.id, full_name: r.full_name as string, group: r.group as string | null })))
+    setSupervisors(pData.map(r => ({ id: r.id, full_name: r.full_name as string })))
     setLoading(false)
   }, [])
 
@@ -235,14 +248,17 @@ function GroupsSegment() {
 
   async function addGroup() {
     if (!name.trim()) return
-    const { data, error } = await supabase.from('student_groups').insert({ name: name.trim() }).select().single()
-    if (data) setGroups(prev => [...prev, data as Group].sort((a, b) => a.name.localeCompare(b.name)))
-    if (error) alert(error.message)
+    try {
+      const rec = await pb.collection('student_groups').create({ name: name.trim() })
+      setGroups(prev => [...prev, { id: rec.id, name: rec.name as string, start_date: null, end_date: null }].sort((a, b) => a.name.localeCompare(b.name)))
+    } catch (e) {
+      alert((e as Error).message)
+    }
     setName('')
   }
 
   async function deleteGroup(id: string) {
-    await supabase.from('student_groups').delete().eq('id', id)
+    await pb.collection('student_groups').delete(id)
     setGroups(prev => prev.filter(g => g.id !== id))
   }
 
@@ -250,7 +266,6 @@ function GroupsSegment() {
 
   return (
     <div className="space-y-3">
-      {/* Add group */}
       <div className="flex gap-2">
         <input
           value={name}
@@ -269,7 +284,7 @@ function GroupsSegment() {
       )}
 
       {groups.map(g => {
-        const members = students.filter(s => s.group_id === g.id)
+        const members = students.filter(s => s.group === g.id)
         return (
           <div key={g.id} className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3">
             <div className="flex-1 min-w-0">
@@ -319,12 +334,12 @@ function StudentsSegment() {
   const [loading,  setLoading]  = useState(true)
 
   const load = useCallback(async () => {
-    const [{ data: s }, { data: g }] = await Promise.all([
-      supabase.from('students').select('*').order('full_name'),
-      supabase.from('student_groups').select('*').order('name'),
+    const [sData, gData] = await Promise.all([
+      pb.collection('students').getFullList({ sort: 'full_name' }),
+      pb.collection('student_groups').getFullList({ sort: 'name' }),
     ])
-    setStudents((s ?? []) as Student[])
-    setGroups((g ?? []) as Group[])
+    setStudents(sData.map(r => ({ id: r.id, full_name: r.full_name as string, group: r.group as string | null })))
+    setGroups(gData.map(r => ({ id: r.id, name: r.name as string, start_date: r.start_date as string | null, end_date: r.end_date as string | null })))
     setLoading(false)
   }, [])
 
@@ -332,19 +347,19 @@ function StudentsSegment() {
 
   async function addStudent() {
     if (!name.trim()) return
-    const { data } = await supabase.from('students').insert({ full_name: name.trim(), group_id: groupId || null }).select().single()
-    if (data) setStudents(prev => [...prev, data as Student].sort((a, b) => a.full_name.localeCompare(b.full_name)))
+    const rec = await pb.collection('students').create({ full_name: name.trim(), group: groupId || null })
+    setStudents(prev => [...prev, { id: rec.id, full_name: rec.full_name as string, group: rec.group as string | null }].sort((a, b) => a.full_name.localeCompare(b.full_name)))
     setName('')
   }
 
   async function deleteStudent(id: string) {
-    await supabase.from('students').delete().eq('id', id)
+    await pb.collection('students').delete(id)
     setStudents(prev => prev.filter(s => s.id !== id))
   }
 
   async function changeGroup(id: string, gid: string) {
-    await supabase.from('students').update({ group_id: gid || null }).eq('id', id)
-    setStudents(prev => prev.map(s => s.id === id ? { ...s, group_id: gid || null } : s))
+    await pb.collection('students').update(id, { group: gid || null })
+    setStudents(prev => prev.map(s => s.id === id ? { ...s, group: gid || null } : s))
   }
 
   if (loading) return <div className="flex justify-center pt-8"><Spinner /></div>
@@ -381,7 +396,7 @@ function StudentsSegment() {
           <div key={s.id} className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-stone-900">{s.full_name}</p>
-              <select value={s.group_id ?? ''} onChange={e => changeGroup(s.id, e.target.value)}
+              <select value={s.group ?? ''} onChange={e => changeGroup(s.id, e.target.value)}
                 className="mt-0.5 bg-transparent text-xs text-stone-400 outline-none">
                 <option value="">No group</option>
                 {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
