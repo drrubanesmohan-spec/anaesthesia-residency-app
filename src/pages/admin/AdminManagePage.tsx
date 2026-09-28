@@ -23,7 +23,7 @@ interface Profile { id: string; full_name: string; role: UserRole }
 const sections: { role: UserRole; label: string; color: string; badge: string }[] = [
   { role: 'admin',      label: 'Admins',         color: 'text-amber-400',  badge: 'bg-amber-500/20 text-amber-400'  },
   { role: 'supervisor', label: 'Руководители',   color: 'text-purple-400', badge: 'bg-purple-500/20 text-purple-400' },
-  { role: 'resident',   label: 'Жители',         color: 'text-sky-400',    badge: 'bg-sky-500/20 text-sky-400'      },
+  { role: 'resident',   label: 'Ординаторы',     color: 'text-sky-400',    badge: 'bg-sky-500/20 text-sky-400'      },
 ]
 
 function PeopleTab() {
@@ -89,6 +89,7 @@ function PeopleTab() {
         full_name: newName.trim(),
         role: addingRole,
         emailVisibility: true,
+        temp_password: newPass,
       })
       setUsers(prev => [...prev, { id: rec.id, full_name: rec.full_name as string, role: rec.role as UserRole }]
         .sort((a, b) => a.full_name.localeCompare(b.full_name)))
@@ -141,6 +142,8 @@ function PeopleTab() {
                       placeholder="Email" type="email"
                       className="w-full rounded-lg bg-white border border-stone-200 px-3 py-2 text-sm text-stone-900 outline-none focus:ring-1 focus:ring-brand-accent"
                     />
+                    <p className="text-xs text-stone-400">Must be a valid email address</p>
+                    <p className="text-xs text-stone-400">Password: minimum 5 characters</p>
                     <input
                       value={newPass} onChange={e => setNewPass(e.target.value)}
                       placeholder="Temporary password" type="password"
@@ -540,14 +543,166 @@ function AttendanceTab() {
   )
 }
 
+/* ─── Files tab ──────────────────────────────────────────────────── */
+
+interface UserFile { id: string; full_name: string; email: string; temp_password: string; group: string }
+
+function FilesTab() {
+  const [users, setUsers] = useState<UserFile[]>([])
+  const [loading, setLoading] = useState(true)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    Promise.all([
+      pb.collection('users').getFullList({ filter: "role = 'resident'", sort: 'full_name', expand: 'group' }),
+      pb.collection('groups').getFullList(),
+    ]).then(([residents, grps]) => {
+      const gMap: Record<string, string> = {}
+      grps.forEach(g => { gMap[g.id] = g['name'] as string })
+      setUsers(residents.map(r => ({
+        id: r.id,
+        full_name: r.full_name as string,
+        email: r.email as string,
+        temp_password: (r.temp_password as string) || '—',
+        group: gMap[r.group as string] || 'No group',
+      })))
+      setLoading(false)
+    })
+  }, [])
+
+  function copyAll() {
+    const lines = users.map(u => `${u.full_name}\t${u.email}\t${u.temp_password}`).join('\n')
+    navigator.clipboard.writeText(lines)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const byGroup = users.reduce<Record<string, UserFile[]>>((acc, u) => {
+    if (!acc[u.group]) acc[u.group] = []
+    acc[u.group].push(u)
+    return acc
+  }, {})
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <span className="text-xs text-stone-400">{users.length} residents</span>
+        <button
+          onClick={copyAll}
+          className="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-200 transition-colors"
+        >
+          {copied ? '✓ Copied' : 'Copy all'}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center pt-12"><Spinner /></div>
+      ) : (
+        Object.entries(byGroup).sort(([a],[b]) => a.localeCompare(b)).map(([groupName, members]) => (
+          <div key={groupName} className="rounded-2xl border border-stone-200 overflow-hidden">
+            <div className="px-4 py-2.5 bg-stone-50 border-b border-stone-200">
+              <span className="text-xs font-semibold text-stone-600">{groupName}</span>
+              <span className="ml-2 text-xs text-stone-400">{members.length} чел.</span>
+            </div>
+            <div className="divide-y divide-stone-100">
+              {members.map((u, i) => (
+                <div key={u.id} className="flex items-start px-4 py-2.5 gap-2">
+                  <span className="text-xs text-stone-400 w-5 shrink-0 pt-0.5">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-stone-900 truncate">{u.full_name}</p>
+                    <p className="text-xs text-stone-400 truncate">{u.email}</p>
+                  </div>
+                  <span className="text-xs font-mono bg-stone-100 rounded px-2 py-1 text-stone-700 shrink-0">{u.temp_password}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
+/* ─── Settings tab ───────────────────────────────────────────────── */
+
+function SettingsTab() {
+  const [token, setToken]         = useState('')
+  const [loaded, setLoaded]       = useState(false)
+  const [saving, setSaving]       = useState(false)
+  const [saved, setSaved]         = useState(false)
+  const [settingId, setSettingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    pb.collection('app_settings').getFirstListItem("key = 'yandex_token'")
+      .then(rec => { setToken(rec.value as string || ''); setSettingId(rec.id); setLoaded(true) })
+      .catch(() => setLoaded(true))
+  }, [])
+
+  async function save() {
+    if (!token.trim()) return
+    setSaving(true)
+    try {
+      if (settingId) {
+        await pb.collection('app_settings').update(settingId, { value: token.trim() })
+      } else {
+        const rec = await pb.collection('app_settings').create({ key: 'yandex_token', value: token.trim() })
+        setSettingId(rec.id)
+      }
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (e) {
+      alert((e as Error).message)
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
+        <div className="px-4 py-3 border-b border-stone-200">
+          <p className="text-sm font-semibold text-stone-700">Токен Яндекс.Диска</p>
+          <p className="text-xs text-stone-400 mt-0.5">Используется для загрузки документов ординаторов</p>
+        </div>
+        <div className="px-4 py-4 space-y-3">
+          {!loaded ? (
+            <div className="flex justify-center py-4"><Spinner /></div>
+          ) : (
+            <>
+              <textarea
+                value={token}
+                onChange={e => setToken(e.target.value)}
+                placeholder="y0_AgAAAA..."
+                rows={3}
+                className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-mono text-stone-900 outline-none focus:ring-1 focus:ring-brand-accent resize-none"
+              />
+              <p className="text-xs text-stone-400">
+                Получить токен: <strong>id.yandex.ru → OAuth</strong>. Если документы не генерируются — токен истёк, вставьте новый.
+              </p>
+              <button
+                onClick={save}
+                disabled={saving || !token.trim()}
+                className="w-full rounded-lg bg-brand-accent py-2 text-xs font-semibold text-white disabled:opacity-40"
+              >
+                {saving ? 'Сохранение…' : saved ? '✓ Сохранено' : 'Сохранить токен'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─── Combined page ──────────────────────────────────────────────── */
 
-type Segment = 'people' | 'hospital' | 'attendance'
+type Segment = 'people' | 'hospital' | 'attendance' | 'files' | 'settings'
 
 const SEGMENTS: { key: Segment; label: string }[] = [
-  { key: 'people',     label: 'People'     },
-  { key: 'hospital',   label: 'Hospital'   },
-  { key: 'attendance', label: 'Attendance' },
+  { key: 'people',     label: 'People'   },
+  { key: 'hospital',   label: 'Hospital' },
+  { key: 'attendance', label: 'Attend.'  },
+  { key: 'files',      label: 'Files'    },
+  { key: 'settings',   label: 'Settings' },
 ]
 
 export function AdminManagePage() {
@@ -555,13 +710,13 @@ export function AdminManagePage() {
 
   return (
     <AppShell title="Manage">
-      <div className="flex rounded-xl bg-stone-100 p-1 mb-4">
+      <div className="flex overflow-x-auto rounded-xl bg-stone-100 p-1 mb-4 no-scrollbar">
         {SEGMENTS.map(s => (
           <button
             key={s.key}
             onClick={() => setSegment(s.key)}
             className={cn(
-              'flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors',
+              'flex-1 min-w-max rounded-lg py-1.5 px-2 text-xs font-semibold transition-colors whitespace-nowrap',
               segment === s.key
                 ? 'bg-brand-light text-stone-900 shadow'
                 : 'text-stone-400 hover:text-stone-600'
@@ -575,6 +730,8 @@ export function AdminManagePage() {
       {segment === 'people'     && <PeopleTab />}
       {segment === 'hospital'   && <HospitalTab />}
       {segment === 'attendance' && <AttendanceTab />}
+      {segment === 'files'      && <FilesTab />}
+      {segment === 'settings'   && <SettingsTab />}
     </AppShell>
   )
 }

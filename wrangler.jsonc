@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "anesthesia-app",
+  "compatibility_date": "2026-09-26",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [
+    { "pattern": "ordinemmed.ru/*", "custom_domain": true },
+    { "pattern": "www.ordinemmed.ru/*", "custom_domain": true }
+  ]
+}

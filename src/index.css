@@ -8,7 +8,7 @@
   }
   body {
     margin: 0;
-    background-color: #ff6600;
+    background-color: #ffffff;
     color: #111111;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -19,6 +19,8 @@
 }
 
 @layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .pt-safe {
     padding-top: env(safe-area-inset-top);
   }

@@ -1,0 +1,11 @@
+{
+  "name": "docgen",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "axios": "^1.7.0",
+    "docxtemplater": "^3.50.0",
+    "express": "^4.19.0",
+    "pizzip": "^3.1.7"
+  }
+}

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Trash2, X, ChevronDown } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, Plus, Trash2, X, ChevronDown, BookOpen } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Spinner } from '../../components/ui/Spinner'
 import { pb } from '../../lib/pbClient'
@@ -28,6 +29,15 @@ interface GroupSchedule {
   start_date: string | null
   end_date: string | null
   timetable: { id: string; day_of_week: number; subject: string }[]
+}
+
+interface LectureEvent {
+  id: string
+  title: string
+  date: string
+  start_time: string
+  lecturer_name: string
+  color: string
 }
 
 const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -185,9 +195,21 @@ function AddEventModal({
 
 /* ─── Calendar page ──────────────────────────────────────────────── */
 
+const LECTURE_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
+  blue:   { bg: 'bg-blue-50',   text: 'text-blue-700',   dot: 'bg-blue-400'   },
+  purple: { bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-400' },
+  green:  { bg: 'bg-emerald-50',text: 'text-emerald-700',dot: 'bg-emerald-400'},
+  orange: { bg: 'bg-orange-50', text: 'text-orange-700', dot: 'bg-orange-400' },
+  pink:   { bg: 'bg-pink-50',   text: 'text-pink-700',   dot: 'bg-pink-400'   },
+  amber:  { bg: 'bg-amber-50',  text: 'text-amber-700',  dot: 'bg-amber-400'  },
+}
+function lectureColor(id: string) { return LECTURE_COLORS[id] ?? LECTURE_COLORS.blue }
+
 export function CalendarPage() {
   const { appUser } = useAuth()
+  const navigate = useNavigate()
   const canEdit = appUser?.role === 'admin' || appUser?.role === 'supervisor'
+  const isAdmin = appUser?.role === 'admin'
 
   const now = new Date()
 
@@ -207,6 +229,7 @@ export function CalendarPage() {
   const [pickYear,   setPickYear]   = useState(year)
   const [deleting,   setDeleting]   = useState<string | null>(null)
   const [groups,     setGroups]     = useState<GroupSchedule[]>([])
+  const [lectures,   setLectures]   = useState<LectureEvent[]>([])
 
   function setYear(y: number)     { setYearRaw(y);  ssSet(SS_YEAR, String(y)) }
   function setMonth(m: number)    { setMonthRaw(m); ssSet(SS_MONTH, String(m)) }
@@ -222,7 +245,7 @@ export function CalendarPage() {
     const firstDay = isoDate(year, month, 1)
     const lastDay  = isoDate(year, month, new Date(year, month + 1, 0).getDate())
 
-    const [eventsData, groupsData, ttData] = await Promise.all([
+    const [eventsData, groupsData, ttData, lecturesData] = await Promise.all([
       pb.collection('calendar_events').getFullList({
         filter: `date <= '${lastDay}' && (end_date = '' || end_date = null || end_date >= '${firstDay}')`,
         sort: 'date',
@@ -231,6 +254,10 @@ export function CalendarPage() {
         filter: "start_date != ''",
       }),
       pb.collection('group_timetable').getFullList(),
+      pb.collection('roster_lectures').getFullList({
+        filter: `date >= '${firstDay}' && date <= '${lastDay}'`,
+        sort: 'date,start_time',
+      }).catch(() => []),
     ])
 
     const fresh: CalendarEvent[] = eventsData.map(r => ({
@@ -254,6 +281,15 @@ export function CalendarPage() {
         .map(t => ({ id: t.id, day_of_week: t.day_of_week as number, subject: t.subject as string })),
     }))
     setGroups(gs)
+
+    setLectures(lecturesData.map(l => ({
+      id: l.id,
+      title: l.title as string,
+      date: l.date as string,
+      start_time: (l.start_time as string) || '',
+      lecturer_name: (l.lecturer_name as string) || '',
+      color: (l.color as string) || 'blue',
+    })))
 
     setLoading(false)
     isFetching.current = false
@@ -303,6 +339,9 @@ export function CalendarPage() {
     }
   }
 
+  const lectureDates = new Set(lectures.map(l => l.date))
+  const selectedLectures = lectures.filter(l => l.date === selected).sort((a, b) => a.start_time.localeCompare(b.start_time))
+
   const selectedEvents = events.filter(e => {
     const end = e.end_date ?? e.date
     return e.date <= selected && end >= selected
@@ -340,6 +379,24 @@ export function CalendarPage() {
   return (
     <AppShell title="Calendar">
       <div className="flex flex-col gap-4">
+
+        {isAdmin && (
+          <button
+            onClick={() => navigate('/admin/lectures')}
+            className="flex items-center justify-between w-full rounded-2xl bg-purple-600 px-4 py-3.5 text-left transition-opacity active:opacity-80"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                <BookOpen size={16} className="text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Расписание лекций</p>
+                <p className="text-xs text-purple-200 mt-0.5">Управление лекциями и лекторами</p>
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-purple-300 shrink-0" />
+          </button>
+        )}
 
         <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200">
@@ -431,6 +488,7 @@ export function CalendarPage() {
               const isSel     = dateStr === selected
               const hasEvent      = eventDates.has(dateStr)
               const hasTimetable  = timetableDates.has(dateStr)
+              const hasLecture    = lectureDates.has(dateStr)
               return (
                 <div key={idx} className="flex flex-col items-center py-0.5">
                   <button
@@ -450,6 +508,9 @@ export function CalendarPage() {
                     )}
                     {hasTimetable && (
                       <span className={cn('w-1.5 h-1.5 rounded-full', isSel ? 'bg-white/70' : 'bg-brand-accent/70')} />
+                    )}
+                    {hasLecture && (
+                      <span className={cn('w-1.5 h-1.5 rounded-full', isSel ? 'bg-white' : 'bg-purple-400')} />
                     )}
                   </div>
                 </div>
@@ -472,10 +533,28 @@ export function CalendarPage() {
             )}
           </div>
 
-          {selectedEvents.length === 0 && selectedTimetableEvents.length === 0 ? (
+          {selectedEvents.length === 0 && selectedTimetableEvents.length === 0 && selectedLectures.length === 0 ? (
             <p className="px-4 py-4 text-xs text-stone-400 italic">No events on this day.</p>
           ) : (
             <div>
+              {selectedLectures.map((lec, i) => {
+                const c = lectureColor(lec.color)
+                const hasNext = i < selectedLectures.length - 1 || selectedTimetableEvents.length > 0 || selectedEvents.length > 0
+                return (
+                  <div
+                    key={lec.id}
+                    className={cn('flex items-start gap-3 px-4 py-3', hasNext && 'border-b border-stone-200')}
+                  >
+                    <div className={cn('mt-1 w-2 h-2 rounded-full shrink-0', c.dot)} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-stone-900">{lec.title}</p>
+                      <p className={cn('text-xs mt-0.5', c.text)}>
+                        {lec.start_time ? `${lec.start_time} · ` : ''}{lec.lecturer_name || 'Лекция'}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
               {selectedTimetableEvents.map((ev, i) => (
                 <div
                   key={ev.id}
