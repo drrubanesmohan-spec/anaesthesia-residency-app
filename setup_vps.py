@@ -1,23 +1,34 @@
-import urllib.request, subprocess, os
+import subprocess, os
 
-DIST_URL = "https://github.com/drrubanesmohan-spec/anaesthesia-residency-app/releases/download/vps-deploy/dist.tar.gz"
 WEBROOT = "/var/www/ordinemmed"
+REPO = "https://github.com/drrubanesmohan-spec/anaesthesia-residency-app"
 
-def run(cmd):
+def run(cmd, check=True):
     print(">>>", cmd)
-    subprocess.run(cmd, shell=True)
+    r = subprocess.run(cmd, shell=True)
+    if check and r.returncode != 0:
+        print("FAILED:", r.returncode)
+    return r.returncode == 0
 
 print("=== Step 1: Install nginx + certbot ===")
 run("apt-get update -qq")
 run("apt-get install -y nginx certbot python3-certbot-nginx")
 
-print("=== Step 2: Download app ===")
-os.makedirs(WEBROOT, exist_ok=True)
-urllib.request.urlretrieve(DIST_URL, "/tmp/dist.tar.gz")
-run("tar -xzf /tmp/dist.tar.gz -C " + WEBROOT)
-print("Files extracted.")
+print("=== Step 2: Clone and build app ===")
+run("rm -rf /tmp/app")
+run(f"git clone --depth 1 {REPO} /tmp/app")
+os.chdir("/tmp/app")
+run("npm ci")
+run("echo 'VITE_PB_URL=https://api.ordinemmed.ru' > .env.local")
+run("npm run build")
 
-print("=== Step 3: Configure nginx ===")
+print("=== Step 3: Copy to webroot ===")
+os.makedirs(WEBROOT, exist_ok=True)
+run(f"rm -rf {WEBROOT}/*")
+run(f"cp -r /tmp/app/dist/. {WEBROOT}/")
+print("Files copied.")
+
+print("=== Step 4: Configure nginx ===")
 conf = (
     "server {\n"
     "    listen 80;\n"
@@ -33,17 +44,14 @@ conf = (
 open("/etc/nginx/sites-available/ordinemmed", "w").write(conf)
 run("ln -sf /etc/nginx/sites-available/ordinemmed /etc/nginx/sites-enabled/ordinemmed")
 run("rm -f /etc/nginx/sites-enabled/default")
-run("nginx -t")
-run("systemctl restart nginx")
-run("systemctl enable nginx")
+run("nginx -t && systemctl restart nginx && systemctl enable nginx")
 print("Nginx ready.")
 
-print("=== Step 4: SSL certificate ===")
-run("certbot --nginx -d ordinemmed.ru -d www.ordinemmed.ru --non-interactive --agree-tos -m admin@ordinemmed.ru --redirect")
+print("=== Step 5: SSL certificate ===")
+run("certbot --nginx -d ordinemmed.ru -d www.ordinemmed.ru --non-interactive --agree-tos -m admin@ordinemmed.ru --redirect", check=False)
 
 print("\n=== ALL DONE ===")
-print("nginx is serving the app on port 80/443.")
-print("Now in Cloudflare DNS:")
-print("  1. Remove Worker custom domains for ordinemmed.ru and www")
-print("  2. Add A record: ordinemmed.ru -> 104.171.128.203  (proxy OFF)")
-print("  3. Add A record: www -> 104.171.128.203  (proxy OFF)")
+print("Nginx serving the app. Now update Cloudflare DNS:")
+print("  Remove Worker custom domains for ordinemmed.ru + www")
+print("  Add A record: ordinemmed.ru -> 104.171.128.203  proxy=OFF")
+print("  Add A record: www          -> 104.171.128.203  proxy=OFF")
