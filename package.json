@@ -11,7 +11,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "build:static": "tsc -b && vite build --config vite.static.config.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
