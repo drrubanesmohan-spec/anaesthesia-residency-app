@@ -8,7 +8,7 @@ import {
   type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronLeft, ChevronRight, Plus, Trash2, X, Clock, User } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Trash2, X, Clock, User, Pencil } from 'lucide-react'
 
 /* ─── Types ──────────────────────────────────────────────────────── */
 interface Topic        { id: string; title: string; color: string }
@@ -49,7 +49,7 @@ function isoDate(y: number, m: number, d: number) {
 function todayStr() { return new Date().toISOString().slice(0, 10) }
 
 /* ─── Draggable topic row ────────────────────────────────────────── */
-function DraggableTopic({ topic }: { topic: Topic }) {
+function DraggableTopic({ topic, onEdit }: { topic: Topic; onEdit: (t: Topic) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `topic::${topic.id}`,
     data: { type: 'topic', topic },
@@ -63,13 +63,20 @@ function DraggableTopic({ topic }: { topic: Topic }) {
       className="cursor-grab active:cursor-grabbing w-full flex items-center gap-1.5 rounded-lg bg-stone-100 px-2 py-1.5 select-none touch-none"
     >
       <div className="w-1.5 h-1.5 rounded-full bg-brand-accent/50 shrink-0" />
-      <span className="text-[11px] font-medium text-stone-800 leading-tight line-clamp-2">{topic.title}</span>
+      <span className="text-[11px] font-medium text-stone-800 leading-tight line-clamp-2 flex-1">{topic.title}</span>
+      <button
+        onPointerDown={e => e.stopPropagation()}
+        onClick={() => onEdit(topic)}
+        className="shrink-0 text-stone-300 hover:text-stone-500 transition-colors"
+      >
+        <Pencil size={10} />
+      </button>
     </div>
   )
 }
 
 /* ─── Draggable lecturer row ─────────────────────────────────────── */
-function DraggableLecturer({ lecturer }: { lecturer: LecturerEntry }) {
+function DraggableLecturer({ lecturer, onEdit }: { lecturer: LecturerEntry; onEdit: (l: LecturerEntry) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `lecturer::${lecturer.id}`,
     data: { type: 'lecturer', lecturer },
@@ -87,13 +94,20 @@ function DraggableLecturer({ lecturer }: { lecturer: LecturerEntry }) {
       )}
     >
       <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', c.dot)} />
-      <span className={cn('text-[11px] font-medium leading-tight truncate', c.text)}>{lecturer.name}</span>
+      <span className={cn('text-[11px] font-medium leading-tight truncate flex-1', c.text)}>{lecturer.name}</span>
+      <button
+        onPointerDown={e => e.stopPropagation()}
+        onClick={() => onEdit(lecturer)}
+        className="shrink-0 text-stone-400 hover:text-stone-600 transition-colors"
+      >
+        <Pencil size={10} />
+      </button>
     </div>
   )
 }
 
 /* ─── Draggable group row ────────────────────────────────────────── */
-function DraggableGroup({ group }: { group: Group }) {
+function DraggableGroup({ group, onEdit }: { group: Group; onEdit: (g: Group) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `group::${group.id}`,
     data: { type: 'group', group },
@@ -115,7 +129,14 @@ function DraggableGroup({ group }: { group: Group }) {
       ) : (
         <div className="w-1.5 h-1.5 rounded-full bg-brand-accent shrink-0" />
       )}
-      <span className={cn('text-[11px] font-medium leading-tight truncate', sp ? sp.text : 'text-brand-accent')}>{group.name}</span>
+      <span className={cn('text-[11px] font-medium leading-tight truncate flex-1', sp ? sp.text : 'text-brand-accent')}>{group.name}</span>
+      <button
+        onPointerDown={e => e.stopPropagation()}
+        onClick={() => onEdit(group)}
+        className="shrink-0 text-stone-400 hover:text-stone-600 transition-colors"
+      >
+        <Pencil size={10} />
+      </button>
     </div>
   )
 }
@@ -423,14 +444,22 @@ function TopicModal({
   )
 }
 
-/* ─── Add lecturer modal ─────────────────────────────────────────── */
-function AddLecturerModal({ onSave, onClose }: { onSave: (l: LecturerEntry) => void; onClose: () => void }) {
-  const [name,  setName]  = useState('')
-  const [color, setColor] = useState('blue')
+/* ─── Lecturer modal (add + edit) ────────────────────────────────── */
+function LecturerModal({
+  lecturer, onSave, onDelete, onClose,
+}: {
+  lecturer?: LecturerEntry
+  onSave: (l: LecturerEntry) => void
+  onDelete?: (id: string) => void
+  onClose: () => void
+}) {
+  const isEdit = !!lecturer
+  const [name,  setName]  = useState(lecturer?.name  ?? '')
+  const [color, setColor] = useState(lecturer?.color ?? 'blue')
 
   function save() {
     if (!name.trim()) return
-    onSave({ id: `lec_${Date.now()}`, name: name.trim(), color })
+    onSave(isEdit ? { ...lecturer!, name: name.trim(), color } : { id: `lec_${Date.now()}`, name: name.trim(), color })
     onClose()
   }
 
@@ -438,7 +467,7 @@ function AddLecturerModal({ onSave, onClose }: { onSave: (l: LecturerEntry) => v
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-t-3xl bg-white p-5 pb-10 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-stone-400">Новый лектор</span>
+          <span className="text-xs text-stone-400">{isEdit ? 'Редактировать лектора' : 'Новый лектор'}</span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-700"><X size={18} /></button>
         </div>
         <input
@@ -460,12 +489,22 @@ function AddLecturerModal({ onSave, onClose }: { onSave: (l: LecturerEntry) => v
             </button>
           ))}
         </div>
-        <button
-          onClick={save} disabled={!name.trim()}
-          className="w-full rounded-xl bg-brand-accent py-2.5 text-sm font-semibold text-white disabled:opacity-40"
-        >
-          Добавить
-        </button>
+        <div className="flex gap-2">
+          {isEdit && onDelete && (
+            <button
+              onClick={() => { onDelete(lecturer!.id); onClose() }}
+              className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-400 hover:bg-red-100"
+            >
+              <Trash2 size={15} />
+            </button>
+          )}
+          <button
+            onClick={save} disabled={!name.trim()}
+            className="flex-1 rounded-xl bg-brand-accent py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+          >
+            {isEdit ? 'Сохранить' : 'Добавить'}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -639,6 +678,7 @@ export function LectureRosterPage() {
   const [editModal,     setEditModal]     = useState<null | { lecture: Partial<RosterLecture> & { date: string; title: string; color: string }; editableDate?: boolean }>(null)
   const [topicModal,    setTopicModal]    = useState<null | { topic?: Topic }>(null)
   const [showAddLec,    setShowAddLec]    = useState(false)
+  const [editLecturer,  setEditLecturer]  = useState<LecturerEntry | null>(null)
   const [showAddGroup,  setShowAddGroup]  = useState(false)
   const [editGroup,     setEditGroup]     = useState<Group | null>(null)
 
@@ -705,6 +745,12 @@ export function LectureRosterPage() {
     const updated = [...lecturers, l]
     setLecturers(updated)
     await persistLecturers(updated)
+  }
+
+  async function updateLecturer(updated: LecturerEntry) {
+    const arr = lecturers.map(l => l.id === updated.id ? updated : l)
+    setLecturers(arr)
+    await persistLecturers(arr)
   }
 
   async function deleteLecturer(id: string) {
@@ -873,7 +919,7 @@ export function LectureRosterPage() {
                   {topics.length === 0 ? (
                     <p className="text-[10px] text-stone-300 italic py-1">Нет лекций</p>
                   ) : (
-                    topics.map(t => <DraggableTopic key={t.id} topic={t} />)
+                    topics.map(t => <DraggableTopic key={t.id} topic={t} onEdit={t => setTopicModal({ topic: t })} />)
                   )}
                 </div>
               </div>
@@ -890,7 +936,7 @@ export function LectureRosterPage() {
                   {lecturers.length === 0 ? (
                     <p className="text-[10px] text-stone-300 italic py-1">Нет лекторов</p>
                   ) : (
-                    lecturers.map(l => <DraggableLecturer key={l.id} lecturer={l} />)
+                    lecturers.map(l => <DraggableLecturer key={l.id} lecturer={l} onEdit={l => setEditLecturer(l)} />)
                   )}
                 </div>
               </div>
@@ -907,7 +953,7 @@ export function LectureRosterPage() {
                   {groups.length === 0 ? (
                     <p className="text-[10px] text-stone-300 italic py-1">Нет групп</p>
                   ) : (
-                    groups.map(g => <DraggableGroup key={g.id} group={g} />)
+                    groups.map(g => <DraggableGroup key={g.id} group={g} onEdit={g => setEditGroup(g)} />)
                   )}
                 </div>
               </div>
@@ -1120,10 +1166,10 @@ export function LectureRosterPage() {
                         {l.color}
                       </span>
                       <button
-                        onClick={() => deleteLecturer(l.id)}
-                        className="text-stone-300 hover:text-red-400 transition-colors ml-1"
+                        onClick={() => setEditLecturer(l)}
+                        className="text-stone-300 hover:text-stone-500 transition-colors ml-1"
                       >
-                        <Trash2 size={14} />
+                        <Pencil size={14} />
                       </button>
                     </div>
                   )
@@ -1245,9 +1291,18 @@ export function LectureRosterPage() {
       )}
 
       {showAddLec && (
-        <AddLecturerModal
+        <LecturerModal
           onSave={addLecturer}
           onClose={() => setShowAddLec(false)}
+        />
+      )}
+
+      {editLecturer && (
+        <LecturerModal
+          lecturer={editLecturer}
+          onSave={updateLecturer}
+          onDelete={deleteLecturer}
+          onClose={() => setEditLecturer(null)}
         />
       )}
 
