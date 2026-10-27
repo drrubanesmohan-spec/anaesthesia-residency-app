@@ -279,14 +279,9 @@ export function TasksPage() {
   const [showModal,  setShowModal]  = useState(false)
 
   const load = useCallback(async () => {
-    const filter = appUser?.role === 'resident'
-      ? `assigned_to = '${appUser.id}'`
-      : ''
-    const data = await pb.collection('tasks').getFullList({
-      filter,
-      sort: '-created',
-      expand: 'assigned_to,created_by',
-    })
+    const opts: Record<string, string> = { sort: '-created', expand: 'assigned_to,created_by' }
+    if (appUser?.role === 'resident') opts.filter = `assigned_to = '${appUser.id}'`
+    const data = await pb.collection('tasks').getFullList(opts)
     setTasks(data.map(r => mapTask(r as unknown as Record<string, unknown>)))
     setLoading(false)
   }, [appUser])

@@ -19,10 +19,11 @@ function AttendanceSheet({ lecture, onClose }: { lecture: Lecture; onClose: () =
 
   useEffect(() => {
     async function load() {
-      const [studentsData, attData] = await Promise.all([
-        pb.collection('students').getFullList({ filter: `group = '${lecture.group}'`, sort: 'full_name' }),
+      const [allStudents, attData] = await Promise.all([
+        pb.collection('students').getFullList({ sort: 'full_name' }),
         pb.collection('lecture_attendance').getFullList({ filter: `lecture = '${lecture.id}'` }),
       ])
+      const studentsData = allStudents.filter(r => r.group === lecture.group)
       setStudents(studentsData.map(r => ({ id: r.id, full_name: r.full_name as string })))
       const map: Record<string, 'present' | 'absent'> = {}
       attData.forEach(r => { map[r.student as string] = r.status as 'present' | 'absent' })

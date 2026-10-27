@@ -16,6 +16,14 @@ import {
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
+/* ─── Activity log helper ─────────────────────────────────────────── */
+
+async function logActivity(actorName: string, action: string, target?: string, details?: string) {
+  try {
+    await pb.collection('activity_logs').create({ user_name: actorName, action, target: target ?? '', details: details ?? '' })
+  } catch { /* never block UI for logging */ }
+}
+
 /* ─── People tab ─────────────────────────────────────────────────── */
 
 interface Profile { id: string; full_name: string; role: UserRole }
@@ -27,6 +35,8 @@ const sections: { role: UserRole; label: string; color: string; badge: string }[
 ]
 
 function PeopleTab() {
+  const { appUser } = useAuth()
+  const actor = appUser?.fullName ?? 'Admin'
   const [users, setUsers]         = useState<Profile[]>([])
   const [loading, setLoading]     = useState(true)
   const [collapsed, setCollapsed] = useState<Record<UserRole, boolean>>({ admin: false, supervisor: false, resident: true })
@@ -54,24 +64,30 @@ function PeopleTab() {
 
   async function changeRole(userId: string, newRole: 'admin' | 'supervisor') {
     setPromoting(userId)
+    const target = users.find(u => u.id === userId)
     await pb.collection('users').update(userId, { role: newRole })
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
+    logActivity(actor, `Changed role to ${newRole}`, target?.full_name)
     setPromoting(null)
   }
 
   async function saveName(userId: string) {
     if (!editName.trim()) return
+    const old = users.find(u => u.id === userId)?.full_name
     await pb.collection('users').update(userId, { full_name: editName.trim() })
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, full_name: editName.trim() } : u))
+    logActivity(actor, 'Renamed user', editName.trim(), `was: ${old}`)
     setEditingId(null)
   }
 
   async function deleteUser(userId: string) {
     if (!confirm('Delete this user?')) return
     setDeleting(userId)
+    const target = users.find(u => u.id === userId)
     try {
       await pb.collection('users').delete(userId)
       setUsers(prev => prev.filter(u => u.id !== userId))
+      logActivity(actor, 'Deleted user', target?.full_name, `role: ${target?.role}`)
     } catch (e) {
       alert((e as Error).message)
     }
@@ -93,6 +109,7 @@ function PeopleTab() {
       })
       setUsers(prev => [...prev, { id: rec.id, full_name: rec.full_name as string, role: rec.role as UserRole }]
         .sort((a, b) => a.full_name.localeCompare(b.full_name)))
+      logActivity(actor, `Added new ${addingRole}`, newName.trim(), `email: ${newEmail.trim()}`)
       setNewName(''); setNewEmail(''); setNewPass(''); setAddingRole(null)
     } catch (e) {
       alert((e as Error).message)
@@ -625,69 +642,73 @@ function FilesTab() {
 
 /* ─── Settings tab ───────────────────────────────────────────────── */
 
-function SettingsTab() {
-  const [token, setToken]         = useState('')
-  const [loaded, setLoaded]       = useState(false)
-  const [saving, setSaving]       = useState(false)
-  const [saved, setSaved]         = useState(false)
-  const [settingId, setSettingId] = useState<string | null>(null)
+
+/* ─── Logs tab ────────────────────────────────────────────────────── */
+
+interface LogEntry {
+  id: string; user_name: string; action: string; target: string; details: string; created: string
+}
+
+function LogsTab() {
+  const [logs, setLogs]       = useState<LogEntry[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    pb.collection('app_settings').getFirstListItem("key = 'yandex_token'")
-      .then(rec => { setToken(rec.value as string || ''); setSettingId(rec.id); setLoaded(true) })
-      .catch(() => setLoaded(true))
+    pb.collection('activity_logs')
+      .getFullList({ sort: '-created', requestKey: 'logs' })
+      .then(recs => {
+        setLogs(recs.map(r => ({
+          id: r.id,
+          user_name: r.user_name as string,
+          action:    r.action    as string,
+          target:    (r.target   as string) || '',
+          details:   (r.details  as string) || '',
+          created:   r.created   as string,
+        })))
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
   }, [])
 
-  async function save() {
-    if (!token.trim()) return
-    setSaving(true)
-    try {
-      if (settingId) {
-        await pb.collection('app_settings').update(settingId, { value: token.trim() })
-      } else {
-        const rec = await pb.collection('app_settings').create({ key: 'yandex_token', value: token.trim() })
-        setSettingId(rec.id)
-      }
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
-    } catch (e) {
-      alert((e as Error).message)
-    }
-    setSaving(false)
-  }
+  if (loading) return <div className="flex justify-center pt-12"><Spinner /></div>
+
+  if (logs.length === 0)
+    return <p className="text-center text-sm text-stone-400 pt-12">No activity logged yet.</p>
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
-        <div className="px-4 py-3 border-b border-stone-200">
-          <p className="text-sm font-semibold text-stone-700">Токен Яндекс.Диска</p>
-          <p className="text-xs text-stone-400 mt-0.5">Используется для загрузки документов ординаторов</p>
-        </div>
-        <div className="px-4 py-4 space-y-3">
-          {!loaded ? (
-            <div className="flex justify-center py-4"><Spinner /></div>
-          ) : (
-            <>
-              <textarea
-                value={token}
-                onChange={e => setToken(e.target.value)}
-                placeholder="y0_AgAAAA..."
-                rows={3}
-                className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-mono text-stone-900 outline-none focus:ring-1 focus:ring-brand-accent resize-none"
-              />
-              <p className="text-xs text-stone-400">
-                Получить токен: <strong>id.yandex.ru → OAuth</strong>. Если документы не генерируются — токен истёк, вставьте новый.
-              </p>
-              <button
-                onClick={save}
-                disabled={saving || !token.trim()}
-                className="w-full rounded-lg bg-brand-accent py-2 text-xs font-semibold text-white disabled:opacity-40"
-              >
-                {saving ? 'Сохранение…' : saved ? '✓ Сохранено' : 'Сохранить токен'}
-              </button>
-            </>
-          )}
-        </div>
+    <div className="rounded-2xl border border-stone-200 bg-brand-light overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-stone-200 flex items-center justify-between">
+        <span className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Activity Log</span>
+        <span className="text-xs text-stone-400">{logs.length} entries</span>
+      </div>
+      <div className="divide-y divide-stone-100 overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-stone-50 text-left">
+              <th className="px-3 py-2 font-semibold text-stone-500 whitespace-nowrap">Date & Time</th>
+              <th className="px-3 py-2 font-semibold text-stone-500 whitespace-nowrap">User</th>
+              <th className="px-3 py-2 font-semibold text-stone-500">Action</th>
+              <th className="px-3 py-2 font-semibold text-stone-500">Target</th>
+              <th className="px-3 py-2 font-semibold text-stone-500">Details</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-stone-100">
+            {logs.map(log => {
+              const dt = new Date(log.created)
+              return (
+                <tr key={log.id} className="hover:bg-stone-50">
+                  <td className="px-3 py-2 text-stone-400 whitespace-nowrap">
+                    {dt.toLocaleDateString('en-GB')} {dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  </td>
+                  <td className="px-3 py-2 text-stone-700 whitespace-nowrap font-medium">{log.user_name}</td>
+                  <td className="px-3 py-2 text-stone-900">{log.action}</td>
+                  <td className="px-3 py-2 text-stone-600">{log.target}</td>
+                  <td className="px-3 py-2 text-stone-400">{log.details}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   )
@@ -695,14 +716,14 @@ function SettingsTab() {
 
 /* ─── Combined page ──────────────────────────────────────────────── */
 
-type Segment = 'people' | 'hospital' | 'attendance' | 'files' | 'settings'
+type Segment = 'people' | 'hospital' | 'attendance' | 'files' | 'logs'
 
 const SEGMENTS: { key: Segment; label: string }[] = [
-  { key: 'people',     label: 'People'   },
-  { key: 'hospital',   label: 'Hospital' },
-  { key: 'attendance', label: 'Attend.'  },
-  { key: 'files',      label: 'Files'    },
-  { key: 'settings',   label: 'Settings' },
+  { key: 'people',     label: 'People'      },
+  { key: 'hospital',   label: 'Hospital'    },
+  { key: 'attendance', label: 'Attend.'     },
+  { key: 'files',      label: 'Credentials' },
+  { key: 'logs',       label: 'Logs'        },
 ]
 
 export function AdminManagePage() {
@@ -731,7 +752,7 @@ export function AdminManagePage() {
       {segment === 'hospital'   && <HospitalTab />}
       {segment === 'attendance' && <AttendanceTab />}
       {segment === 'files'      && <FilesTab />}
-      {segment === 'settings'   && <SettingsTab />}
+      {segment === 'logs'       && <LogsTab />}
     </AppShell>
   )
 }

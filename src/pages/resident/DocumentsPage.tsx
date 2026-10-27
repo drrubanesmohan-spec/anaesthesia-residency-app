@@ -6,10 +6,78 @@ import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 import {
   ChevronDown, ChevronUp, Plus, Trash2,
-  FileText, ExternalLink, AlertCircle, CheckCircle2, Clock, Loader2,
+  FileText, ExternalLink, AlertCircle, CheckCircle2, Clock, Loader2, FolderOpen,
 } from 'lucide-react'
 import type { IndividualPlanData, PracticeMonth, Publication, Conference, SubmissionStatus } from '../../types/documents'
 import { emptyPlan, emptyMonth, emptyPub, emptyConf } from '../../types/documents'
+
+/* ─── Shared documents section ────────────────────────────────────── */
+interface SharedDoc { id: string; name: string; file: string; folder: string; size: number }
+
+function SharedDocsSection() {
+  const [docs, setDocs]       = useState<SharedDoc[]>([])
+  const [loading, setLoading] = useState(true)
+  const [open, setOpen]       = useState(true)
+
+  useEffect(() => {
+    pb.collection('shared_documents').getFullList({ sort: 'folder,name' }).catch(() => []).then(recs => {
+      setDocs((recs as Record<string, unknown>[]).filter(r => r.file).map(r => ({
+        id: r.id as string,
+        name: r.name as string,
+        file: r.file as string,
+        folder: (r.folder as string) || 'Общее',
+        size: (r.size as number) || 0,
+      })))
+      setLoading(false)
+    })
+  }, [])
+
+  if (loading) return null
+  if (docs.length === 0) return null
+
+  const byFolder = docs.reduce<Record<string, SharedDoc[]>>((acc, d) => {
+    if (!acc[d.folder]) acc[d.folder] = []
+    acc[d.folder].push(d)
+    return acc
+  }, {})
+
+  return (
+    <div className="rounded-2xl border border-stone-200 overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex w-full items-center justify-between px-4 py-3 bg-stone-50 hover:bg-stone-100 transition-colors"
+      >
+        <span className="text-sm font-semibold text-stone-700">Документы кафедры</span>
+        {open ? <ChevronUp size={15} className="text-stone-400" /> : <ChevronDown size={15} className="text-stone-400" />}
+      </button>
+      {open && (
+        <div className="divide-y divide-stone-100">
+          {Object.entries(byFolder).sort(([a], [b]) => a.localeCompare(b)).map(([folderName, folderDocs]) => (
+            <div key={folderName}>
+              <div className="flex items-center gap-2 px-4 py-2 bg-stone-50/50">
+                <FolderOpen size={12} className="text-stone-400" />
+                <span className="text-xs font-semibold text-stone-500">{folderName}</span>
+              </div>
+              {folderDocs.map(doc => (
+                <a
+                  key={doc.id}
+                  href={`${pb.baseURL}/api/files/shared_documents/${doc.id}/${doc.file}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-stone-50 transition-colors"
+                >
+                  <FileText size={14} className="text-stone-300 shrink-0" />
+                  <span className="flex-1 text-sm text-stone-800 truncate">{doc.name}</span>
+                  <ExternalLink size={13} className="text-stone-300 shrink-0" />
+                </a>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const GEN_SERVICE = 'https://gen.ordinemmed.ru'
 
@@ -246,6 +314,8 @@ export function DocumentsPage() {
   return (
     <AppShell title="Индивидуальный план">
       <div className="space-y-4">
+
+        <SharedDocsSection />
 
         {/* Status row */}
         <div className="flex items-center justify-between rounded-2xl border border-stone-200 bg-brand-light px-4 py-3">

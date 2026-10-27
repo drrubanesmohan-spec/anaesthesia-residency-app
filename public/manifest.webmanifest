@@ -1,0 +1,15 @@
+{
+  "name": "Anaesthesia Residency",
+  "short_name": "Residency",
+  "description": "Anaesthesia Residency Program",
+  "theme_color": "#1a1a1a",
+  "background_color": "#eeede8",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/favicon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

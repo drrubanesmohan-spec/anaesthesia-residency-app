@@ -181,7 +181,167 @@ function DailyAttendanceLogTab() {
   )
 }
 
-type Tab = 'assignments' | 'daily'
+/* ─── Лечебное дело tab ─────────────────────────────────────────── */
+interface GroupStat {
+  id: string
+  name: string
+  specialty: string
+  studentCount: number
+}
+interface LecturerStat { name: string; lectureCount: number }
+interface LocationStat { name: string; usageCount: number }
+
+const SPECIALTY_LABELS: Record<string, string> = {
+  air: 'АиР', rb: 'РБ', ms: 'МС', kzh: 'КЖ',
+}
+
+function LechebnoeDeloTab() {
+  const [groups,    setGroups]    = useState<GroupStat[]>([])
+  const [lecturers, setLecturers] = useState<LecturerStat[]>([])
+  const [locations, setLocations] = useState<LocationStat[]>([])
+  const [loading,   setLoading]   = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const [gRecs, lRecs] = await Promise.all([
+        pb.collection('student_groups').getFullList({ sort: 'start_date' }).catch(() => [] as Record<string, unknown>[]),
+        pb.collection('roster_lectures').getFullList({ sort: 'date,start_time' }).catch(() => [] as Record<string, unknown>[]),
+      ])
+      if (cancelled) return
+
+      // Groups + student count (from manually entered field)
+      const groupStats: GroupStat[] = gRecs.map(g => ({
+        id: g.id as string,
+        name: g.name as string,
+        specialty: (g.specialty as string) || '',
+        studentCount: (g.student_count as number) || 0,
+      }))
+
+      // Lectures per lecturer
+      const lecMap = new Map<string, number>()
+      for (const l of lRecs) {
+        const names = ((l.lecturer_name as string) || '').split(',').map((n: string) => n.trim()).filter(Boolean)
+        for (const name of names) {
+          lecMap.set(name, (lecMap.get(name) ?? 0) + 1)
+        }
+      }
+      const lecStats: LecturerStat[] = Array.from(lecMap.entries())
+        .map(([name, lectureCount]) => ({ name, lectureCount }))
+        .sort((a, b) => b.lectureCount - a.lectureCount)
+
+      // Location usage
+      const locMap = new Map<string, number>()
+      for (const l of lRecs) {
+        const loc = (l.location as string) || ''
+        if (loc) locMap.set(loc, (locMap.get(loc) ?? 0) + 1)
+      }
+      const locStats: LocationStat[] = Array.from(locMap.entries())
+        .map(([name, usageCount]) => ({ name, usageCount }))
+        .sort((a, b) => b.usageCount - a.usageCount)
+
+      setGroups(groupStats)
+      setLecturers(lecStats)
+      setLocations(locStats)
+      setLoading(false)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  if (loading) return <div className="flex justify-center pt-10"><Spinner /></div>
+
+  return (
+    <div className="flex flex-col gap-5">
+
+      {/* Groups */}
+      <section>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-2">Группы</h2>
+        {groups.length === 0 ? (
+          <p className="text-xs text-stone-400 italic">Нет групп</p>
+        ) : (
+          <div className="rounded-xl border border-stone-200 overflow-hidden bg-white">
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="bg-stone-50 border-b border-stone-200">
+                  <th className="text-left px-3 py-2 font-semibold text-stone-500">Группа</th>
+                  <th className="text-left px-3 py-2 font-semibold text-stone-500">Специальность</th>
+                  <th className="text-right px-3 py-2 font-semibold text-stone-500">Студентов</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groups.map((g, i) => (
+                  <tr key={g.id} className={i < groups.length - 1 ? 'border-b border-stone-100' : ''}>
+                    <td className="px-3 py-2 font-medium text-stone-800">{g.name}</td>
+                    <td className="px-3 py-2 text-stone-500">{SPECIALTY_LABELS[g.specialty] ?? (g.specialty || '—')}</td>
+                    <td className="px-3 py-2 text-right font-semibold text-stone-700">{g.studentCount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Lecturers */}
+      <section>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-2">Лекции по лектору</h2>
+        {lecturers.length === 0 ? (
+          <p className="text-xs text-stone-400 italic">Нет лекций</p>
+        ) : (
+          <div className="rounded-xl border border-stone-200 overflow-hidden bg-white">
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="bg-stone-50 border-b border-stone-200">
+                  <th className="text-left px-3 py-2 font-semibold text-stone-500">Лектор</th>
+                  <th className="text-right px-3 py-2 font-semibold text-stone-500">Лекций</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lecturers.map((l, i) => (
+                  <tr key={l.name} className={i < lecturers.length - 1 ? 'border-b border-stone-100' : ''}>
+                    <td className="px-3 py-2 text-stone-800">{l.name}</td>
+                    <td className="px-3 py-2 text-right font-semibold text-stone-700">{l.lectureCount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Locations */}
+      <section>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-2">Использование аудиторий</h2>
+        {locations.length === 0 ? (
+          <p className="text-xs text-stone-400 italic">Нет данных</p>
+        ) : (
+          <div className="rounded-xl border border-stone-200 overflow-hidden bg-white">
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="bg-stone-50 border-b border-stone-200">
+                  <th className="text-left px-3 py-2 font-semibold text-stone-500">Аудитория</th>
+                  <th className="text-right px-3 py-2 font-semibold text-stone-500">Раз использована</th>
+                </tr>
+              </thead>
+              <tbody>
+                {locations.map((loc, i) => (
+                  <tr key={loc.name} className={i < locations.length - 1 ? 'border-b border-stone-100' : ''}>
+                    <td className="px-3 py-2 text-stone-800">{loc.name}</td>
+                    <td className="px-3 py-2 text-right font-semibold text-stone-700">{loc.usageCount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+    </div>
+  )
+}
+
+type Tab = 'assignments' | 'daily' | 'lechebnoe'
 
 export function AssignmentLogPage() {
   const { appUser } = useAuth()
@@ -193,7 +353,7 @@ export function AssignmentLogPage() {
     <AppShell title="Logs">
       {isAdmin && (
         <div className="mb-4 flex rounded-xl bg-brand-light p-1 gap-1">
-          {([['assignments', 'Assignments'], ['daily', 'Daily Attendance']] as [Tab, string][]).map(([key, label]) => (
+          {([['assignments', 'Assignments'], ['daily', 'Daily Attendance'], ['lechebnoe', 'Леч. Дело']] as [Tab, string][]).map(([key, label]) => (
             <button
               key={key}
               onClick={() => setTab(key)}
@@ -207,7 +367,7 @@ export function AssignmentLogPage() {
         </div>
       )}
 
-      {tab === 'assignments' ? <AssignmentLogTab /> : <DailyAttendanceLogTab />}
+      {tab === 'assignments' ? <AssignmentLogTab /> : tab === 'daily' ? <DailyAttendanceLogTab /> : <LechebnoeDeloTab />}
     </AppShell>
   )
 }

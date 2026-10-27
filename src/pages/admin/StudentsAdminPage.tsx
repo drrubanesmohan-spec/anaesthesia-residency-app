@@ -43,10 +43,9 @@ function GroupEditModal({
 
   useEffect(() => {
     pb.collection('group_timetable').getFullList({
-      filter: `group = '${group.id}'`,
       sort: 'day_of_week',
       expand: 'supervisor',
-    }).then(data => {
+    }).then(all => all.filter(r => r.group === group.id)).then(data => {
       setEntries(data.map(r => {
         const ex = r.expand as Record<string, Record<string, unknown>> | undefined
         return {

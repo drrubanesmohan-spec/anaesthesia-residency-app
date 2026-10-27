@@ -1,37 +1,45 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Calendar, Users, ScrollText, LayoutGrid, CheckSquare, LogOut, GraduationCap, FileText } from 'lucide-react'
+import { Home, Calendar, Users, LayoutGrid, CheckSquare, LogOut, FileText, BookOpen, Presentation, ClipboardList } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
+import { useEffect, useState } from 'react'
+import { pb } from '../../lib/pbClient'
 
 const residentTabs = [
   { to: '/resident', icon: Home, label: 'Home', end: true },
   { to: '/resident/attendance', icon: Calendar, label: 'Посещ.' },
-  { to: '/resident/calendar', icon: Calendar, label: 'Календарь' },
+  { to: '/resident/logbook', icon: ClipboardList, label: 'Логбук' },
   { to: '/resident/tasks', icon: CheckSquare, label: 'Задачи' },
   { to: '/resident/documents', icon: FileText, label: 'Документы' },
 ]
 
 const supervisorTabs = [
   { to: '/supervisor', icon: Home, label: 'Home', end: true },
-  { to: '/supervisor/sessions', icon: Users, label: 'Ординаторы' },
-  { to: '/supervisor/calendar', icon: Calendar, label: 'Calendar' },
-  { to: '/supervisor/tasks', icon: CheckSquare, label: 'Tasks' },
-  { to: '/supervisor/students', icon: GraduationCap, label: 'Students' },
-  { to: '/supervisor/logs', icon: ScrollText, label: 'Logs' },
+  { to: '/supervisor/residents', icon: Users, label: 'Ординаторы' },
+  { to: '/supervisor/logbook', icon: ClipboardList, label: 'Логбук' },
+  { to: '/supervisor/lectures', icon: Presentation, label: 'Лекции' },
+  { to: '/supervisor/tasks', icon: CheckSquare, label: 'Задачи' },
 ]
 
 const adminTabs = [
   { to: '/admin', icon: Home, label: 'Dashboard', end: true },
   { to: '/admin/manage', icon: LayoutGrid, label: 'Manage' },
-  { to: '/admin/documents', icon: FileText, label: 'Docs' },
-  { to: '/admin/calendar', icon: Calendar, label: 'Calendar' },
+  { to: '/admin/logbook', icon: ClipboardList, label: 'Логбук' },
+  { to: '/admin/lectures', icon: BookOpen, label: 'Лекции' },
   { to: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
-  { to: '/admin/students', icon: GraduationCap, label: 'Students' },
-  { to: '/admin/logs', icon: ScrollText, label: 'Logs' },
 ]
 
 export function BottomTabBar() {
   const { appUser, signOut } = useAuth()
+  const [pendingCount, setPendingCount] = useState(0)
+
+  useEffect(() => {
+    if (appUser?.role !== 'supervisor') return
+    pb.collection('logbook_entries').getList(1, 1, {
+      filter: `supervisor = '${appUser.id}' && status = 'submitted'`,
+    }).then(r => setPendingCount(r.totalItems)).catch(() => {})
+  }, [appUser])
+
   if (!appUser) return null
 
   const tabs =
@@ -56,7 +64,14 @@ export function BottomTabBar() {
               )
             }
           >
-            <Icon size={22} className="mb-0.5" />
+            <span className="relative">
+              <Icon size={22} className="mb-0.5" />
+              {to === '/supervisor/logbook' && pendingCount > 0 && (
+                <span className="absolute -top-1 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white leading-none">
+                  {pendingCount > 99 ? '99+' : pendingCount}
+                </span>
+              )}
+            </span>
             <span>{label}</span>
           </NavLink>
         ))}

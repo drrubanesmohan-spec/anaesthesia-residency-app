@@ -12,6 +12,7 @@ export default defineConfig({
       globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       // Serve cached app shell while network fetches update
       navigateFallback: 'index.html',
+      navigateFallbackDenylist: [/^\/kafedra/, /^\/pb\//],
       // Cache Supabase API responses for 5 min, fall back to cache if network is slow
       runtimeCaching: [
         {
