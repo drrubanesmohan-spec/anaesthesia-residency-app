@@ -131,7 +131,16 @@ function LectureModal({
   )
   const [multiCustom,    setMultiCustom]    = useState('')
   const [groupName,      setGroupName]      = useState(lecture.group_name ?? '')
-  const [location,       setLocation]       = useState(lecture.location ?? '')
+  const [location,       setLocation]       = useState(() => {
+    if (!lecture.location) return ''
+    if (locations.length === 0 || locations.find(l => l.name === lecture.location)) return lecture.location
+    return '__custom__'
+  })
+  const [customLocation, setCustomLocation] = useState(() => {
+    if (!lecture.location) return ''
+    if (locations.length === 0 || locations.find(l => l.name === lecture.location)) return ''
+    return lecture.location
+  })
   const [notes,          setNotes]          = useState(lecture.notes ?? '')
   const colorForGroup = (name: string) => {
     const g = groups.find(g => g.name === name)
@@ -159,7 +168,8 @@ function LectureModal({
   async function save() {
     if (!effectiveTitle.trim() || !date) return
     setSaving(true)
-    await onSave({ title: effectiveTitle.trim(), date, start_time: time, lecturer_name: effectiveName, group_name: groupName, location, color: effectiveColor, notes })
+    const effectiveLocation = location === '__custom__' ? customLocation : location
+    await onSave({ title: effectiveTitle.trim(), date, start_time: time, lecturer_name: effectiveName, group_name: groupName, location: effectiveLocation, color: effectiveColor, notes })
     setSaving(false)
   }
   async function del() {
@@ -343,8 +353,8 @@ function LectureModal({
         </div>
         {location === '__custom__' && (
           <input
-            value=""
-            onChange={e => setLocation(e.target.value)}
+            value={customLocation}
+            onChange={e => setCustomLocation(e.target.value)}
             placeholder="Введите место"
             className="w-full rounded-xl bg-stone-100 px-4 py-2.5 text-sm text-stone-900 outline-none focus:ring-1 focus:ring-brand-accent"
           />
@@ -612,7 +622,7 @@ function LocationModal({
 interface GroupLecture { id: string; date: string; title: string; lecturer_name: string; start_time: string; location: string }
 
 function AddGroupModal({
-  group, lecturers, topics, locations, onSave, onDelete, onClose,
+  group, lecturers, topics, locations, onSave, onDelete, onClose, onAddLocation,
 }: {
   group?: Group
   lecturers: LecturerEntry[]
@@ -621,13 +631,16 @@ function AddGroupModal({
   onSave: (g: Group) => void
   onDelete?: (id: string) => void
   onClose: () => void
+  onAddLocation: (l: LocationEntry) => void
 }) {
   const isEdit = !!group
   const [name,         setName]         = useState(group?.name         ?? '')
   const [startDate,    setStartDate]    = useState(group?.start_date   ?? '')
   const [endDate,      setEndDate]      = useState(group?.end_date     ?? '')
   const [specialty,    setSpecialty]    = useState(group?.specialty    ?? '')
-  const [kurator,      setKurator]      = useState(group?.kurator      ?? '')
+  const [kurators,     setKurators]     = useState<string[]>(
+    group?.kurator ? group.kurator.split(',').map(s => s.trim()).filter(Boolean) : []
+  )
   const [studentCount, setStudentCount] = useState(String(group?.student_count ?? ''))
   const [saving,    setSaving]    = useState(false)
   const [deleting,  setDeleting]  = useState(false)
@@ -636,7 +649,9 @@ function AddGroupModal({
   const [groupLectures, setGroupLectures] = useState<GroupLecture[]>([])
   const [loadingLec,    setLoadingLec]    = useState(false)
   const [showAddLec,    setShowAddLec]    = useState(false)
-  const [newLec, setNewLec] = useState({ date: '', title: '', lecturer_name: '', start_time: '09:00', location: '' })
+  const [newLec, setNewLec] = useState({ date: '', title: '', start_time: '09:00', location: '' })
+  const [newLecLecturers, setNewLecLecturers] = useState<string[]>([])
+  const [newLecCustomLoc, setNewLecCustomLoc] = useState('')
   const [savingLec, setSavingLec] = useState(false)
 
   useEffect(() => {
@@ -658,10 +673,12 @@ function AddGroupModal({
     try {
       const sc = studentCount !== '' ? Number(studentCount) : null
       if (isEdit) {
-        await pb.collection('student_groups').update(group!.id, { name: name.trim(), start_date: startDate || null, end_date: endDate || null, specialty: specialty || null, kurator: kurator || null, student_count: sc })
-        onSave({ id: group!.id, name: name.trim(), start_date: startDate, end_date: endDate, specialty, kurator, student_count: sc ?? undefined })
+        const kuratorStr = kurators.join(', ')
+        await pb.collection('student_groups').update(group!.id, { name: name.trim(), start_date: startDate || null, end_date: endDate || null, specialty: specialty || null, kurator: kuratorStr || null, student_count: sc })
+        onSave({ id: group!.id, name: name.trim(), start_date: startDate, end_date: endDate, specialty, kurator: kuratorStr, student_count: sc ?? undefined })
       } else {
-        const rec = await pb.collection('student_groups').create({ name: name.trim(), start_date: startDate || null, end_date: endDate || null, specialty: specialty || null, kurator: kurator || null, student_count: sc })
+        const kuratorStr = kurators.join(', ')
+        const rec = await pb.collection('student_groups').create({ name: name.trim(), start_date: startDate || null, end_date: endDate || null, specialty: specialty || null, kurator: kuratorStr || null, student_count: sc })
         onSave({ id: rec.id, name: rec.name as string, start_date: (rec.start_date as string) || '', end_date: (rec.end_date as string) || '', specialty: (rec.specialty as string) || '', kurator: (rec.kurator as string) || '', student_count: (rec.student_count as number) || undefined })
       }
       onClose()
@@ -683,19 +700,28 @@ function AddGroupModal({
     setSavingLec(true)
     try {
       const sp = specialtyFor(specialty)
+      let locationName = newLec.location
+      if (newLec.location === '__custom__' && newLecCustomLoc.trim()) {
+        const entry: LocationEntry = { id: `loc_${Date.now()}`, name: newLecCustomLoc.trim() }
+        onAddLocation(entry)
+        locationName = entry.name
+      }
+      const lecturerName = newLecLecturers.join(', ')
       const rec = await pb.collection('roster_lectures').create({
         date: newLec.date,
         title: newLec.title,
-        lecturer_name: newLec.lecturer_name,
+        lecturer_name: lecturerName,
         start_time: newLec.start_time,
-        location: newLec.location,
+        location: locationName,
         group_name: name.trim(),
         color: sp?.color ?? 'blue',
         notes: '',
       })
-      setGroupLectures(prev => [...prev, { id: rec.id, date: newLec.date, title: newLec.title, lecturer_name: newLec.lecturer_name, start_time: newLec.start_time, location: newLec.location }]
+      setGroupLectures(prev => [...prev, { id: rec.id, date: newLec.date, title: newLec.title, lecturer_name: lecturerName, start_time: newLec.start_time, location: locationName }]
         .sort((a, b) => a.date.localeCompare(b.date)))
-      setNewLec({ date: '', title: '', lecturer_name: '', start_time: '09:00', location: '' })
+      setNewLec({ date: '', title: '', start_time: '09:00', location: '' })
+      setNewLecLecturers([])
+      setNewLecCustomLoc('')
       setShowAddLec(false)
     } catch(e) { console.error(e) }
     setSavingLec(false)
@@ -722,16 +748,25 @@ function AddGroupModal({
         />
 
         {/* Куратор */}
-        <div className="flex items-center gap-2 rounded-xl bg-stone-100 px-3 py-2.5">
-          <span className="text-xs text-stone-400 shrink-0 w-16">Куратор</span>
-          <select
-            value={kurator}
-            onChange={e => setKurator(e.target.value)}
-            className="flex-1 bg-transparent text-sm text-stone-900 outline-none"
-          >
-            <option value="">— не выбран —</option>
-            {lecturers.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
-          </select>
+        <div className="rounded-xl bg-stone-100 px-3 py-2.5 space-y-1.5">
+          <div className="flex items-center gap-2 pb-1 border-b border-stone-200">
+            <span className="text-xs text-stone-400 shrink-0">Кураторы</span>
+          </div>
+          {lecturers.length === 0 ? (
+            <p className="text-xs text-stone-400 italic">Нет преподавателей</p>
+          ) : lecturers.map(l => (
+            <label key={l.id} className="flex items-center gap-2 cursor-pointer py-0.5">
+              <input
+                type="checkbox"
+                checked={kurators.includes(l.name)}
+                onChange={() => setKurators(prev =>
+                  prev.includes(l.name) ? prev.filter(n => n !== l.name) : [...prev, l.name]
+                )}
+                className="accent-brand-accent w-3.5 h-3.5"
+              />
+              <span className="text-sm text-stone-800">{l.name}</span>
+            </label>
+          ))}
         </div>
 
         {/* Количество студентов */}
@@ -804,17 +839,37 @@ function AddGroupModal({
                   placeholder="Тема лекции"
                   className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs text-stone-900 outline-none focus:ring-1 focus:ring-brand-accent" />
               )}
-              <select value={newLec.lecturer_name} onChange={e => setNewLec(v => ({ ...v, lecturer_name: e.target.value }))}
+              {lecturers.length > 0 && (
+                <div className="rounded-lg border border-stone-200 bg-white px-2 py-1.5 space-y-1">
+                  <p className="text-[10px] text-stone-400">Преподаватели</p>
+                  {lecturers.map(l => (
+                    <label key={l.id} className="flex items-center gap-1.5 cursor-pointer py-0.5">
+                      <input
+                        type="checkbox"
+                        checked={newLecLecturers.includes(l.name)}
+                        onChange={() => setNewLecLecturers(prev =>
+                          prev.includes(l.name) ? prev.filter(n => n !== l.name) : [...prev, l.name]
+                        )}
+                        className="accent-brand-accent w-3 h-3"
+                      />
+                      <span className="text-xs text-stone-800">{l.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <select value={newLec.location} onChange={e => setNewLec(v => ({ ...v, location: e.target.value }))}
                 className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs text-stone-900 outline-none focus:ring-1 focus:ring-brand-accent">
-                <option value="">— Лектор —</option>
-                {lecturers.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
+                <option value="">— Место —</option>
+                {locations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
+                <option value="__custom__">Другое…</option>
               </select>
-              {locations.length > 0 && (
-                <select value={newLec.location} onChange={e => setNewLec(v => ({ ...v, location: e.target.value }))}
-                  className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs text-stone-900 outline-none focus:ring-1 focus:ring-brand-accent">
-                  <option value="">— Место —</option>
-                  {locations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
-                </select>
+              {newLec.location === '__custom__' && (
+                <input
+                  value={newLecCustomLoc}
+                  onChange={e => setNewLecCustomLoc(e.target.value)}
+                  placeholder="Введите место"
+                  className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs text-stone-900 outline-none focus:ring-1 focus:ring-brand-accent"
+                />
               )}
               <button onClick={addLecture} disabled={savingLec || !newLec.date || !newLec.title.trim()}
                 className="w-full rounded-lg bg-brand-accent py-1.5 text-xs font-semibold text-white disabled:opacity-40">
@@ -1738,6 +1793,7 @@ export function LectureRosterPage() {
           topics={topics}
           locations={locations}
           onSave={g => setGroups(prev => [...prev, g].sort((a, b) => a.start_date.localeCompare(b.start_date)))}
+          onAddLocation={addLocation}
           onClose={() => setShowAddGroup(false)}
         />
       )}
@@ -1752,6 +1808,7 @@ export function LectureRosterPage() {
             prev.map(g => g.id === updated.id ? updated : g).sort((a, b) => a.start_date.localeCompare(b.start_date))
           )}
           onDelete={id => setGroups(prev => prev.filter(g => g.id !== id))}
+          onAddLocation={addLocation}
           onClose={() => setEditGroup(null)}
         />
       )}
