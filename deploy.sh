@@ -20,6 +20,11 @@ echo "=== Deploying to webroot ==="
 rm -rf "$WEBROOT"/*
 cp -r dist/. "$WEBROOT"/
 
+echo "=== Syncing PocketBase migrations ==="
+cp -n /tmp/deploy_app/pb_migrations/*.js /opt/pocketbase/pb_migrations/ 2>/dev/null || true
+systemctl restart pocketbase
+sleep 3
+
 echo "=== Updating nginx ==="
 python3 -c "
 c = open('$NGINX_CONF').read()
