@@ -166,10 +166,8 @@ export function LogbookAdminPage() {
   const [approved, setApproved] = useState<ApprovedEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [procs554, setProcs554] = useState<Procedure[]>([])
-  const [editProc, setEditProc] = useState<Procedure | 'new' | undefined>()
-  const [editProc554, setEditProc554] = useState<Procedure | 'new' | undefined>()
+  const [editProc, setEditProc] = useState<Procedure | 'new' | 'new554' | undefined>()
   const [search, setSearch] = useState('')
-  const [search554, setSearch554] = useState('')
 
   const mapProc = (r: Record<string, unknown>): Procedure => ({
     id: r.id as string, name: r.name as string, category: r.category as string,
@@ -279,26 +277,18 @@ export function LogbookAdminPage() {
     await loadProcedures()
   }
 
-  const featuredProcs = procedures.filter(p => p.featured)
-  const filteredProcs = procedures.filter(p =>
-    !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.category.toLowerCase().includes(search.toLowerCase())
-  )
-  const byCategory = filteredProcs.reduce<Record<string, Procedure[]>>((acc, p) => {
-    if (!acc[p.category]) acc[p.category] = []
-    acc[p.category].push(p)
-    return acc
-  }, {})
-
   if (loading) return (
     <AppShell title="Логбук — Управление" showBack>
       <div className="flex justify-center pt-16"><Spinner /></div>
     </AppShell>
   )
 
-  const filtered554 = procs554.filter(p =>
-    !search554 || p.name.toLowerCase().includes(search554.toLowerCase()) || p.category.toLowerCase().includes(search554.toLowerCase())
+  const allProcs = [...procedures, ...procs554]
+  const featuredAll = allProcs.filter(p => p.featured)
+  const filteredAll = allProcs.filter(p =>
+    !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.category.toLowerCase().includes(search.toLowerCase())
   )
-  const byCategory554 = filtered554.reduce<Record<string, Procedure[]>>((acc, p) => {
+  const allByCategory = filteredAll.reduce<Record<string, Procedure[]>>((acc, p) => {
     if (!acc[p.category]) acc[p.category] = []
     acc[p.category].push(p)
     return acc
@@ -323,132 +313,91 @@ export function LogbookAdminPage() {
           ))}
         </div>
 
-        {/* ── PROCEDURES TAB ── two-column: existing list | 554н reference */}
+        {/* ── PROCEDURES TAB ── merged single list */}
         {tab === 'procedures' && (
-          <div className="grid grid-cols-2 gap-4 items-start">
+          <div className="max-w-xl space-y-3">
+            <div className="flex gap-2">
+              <input
+                value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Поиск…"
+                className="flex-1 rounded-xl bg-stone-100 px-4 py-2 text-sm text-stone-900 outline-none"
+              />
+              <button
+                onClick={() => setEditProc('new')}
+                className="flex items-center gap-1.5 rounded-xl bg-brand-accent px-4 py-2 text-sm font-semibold text-white whitespace-nowrap"
+              >
+                <Plus size={14} /> Добавить
+              </button>
+              <button
+                onClick={() => setEditProc('new554')}
+                className="flex items-center gap-1.5 rounded-xl bg-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 whitespace-nowrap"
+              >
+                <Plus size={13} /> 554н
+              </button>
+            </div>
+            <p className="text-xs text-stone-400 px-1">
+              {allProcs.length} манипуляций · {allProcs.filter(p => !p.active).length} скрыто
+            </p>
 
-            {/* ── Left: managed procedure list ── */}
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <input
-                  value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Поиск…"
-                  className="flex-1 rounded-xl bg-stone-100 px-4 py-2 text-sm text-stone-900 outline-none"
-                />
-                <button
-                  onClick={() => setEditProc('new')}
-                  className="flex items-center gap-1.5 rounded-xl bg-brand-accent px-4 py-2 text-sm font-semibold text-white"
-                >
-                  <Plus size={14} /> Добавить
-                </button>
-              </div>
-              <p className="text-xs text-stone-400 px-1">{procedures.length} манипуляций · {procedures.filter(p => !p.active).length} скрыто</p>
-
-              {/* ── Featured / pinned section ── */}
-              <div className="rounded-xl border border-amber-200 overflow-hidden">
-                <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Star size={11} className="text-amber-500 fill-amber-500" />
-                    <span className="text-xs font-semibold text-amber-800">Часто используемые</span>
-                  </div>
-                  <span className="text-xs text-amber-500">{featuredProcs.length}</span>
+            {/* ── Starred / pinned ── */}
+            <div className="rounded-xl border border-amber-200 overflow-hidden">
+              <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Star size={11} className="text-amber-500 fill-amber-500" />
+                  <span className="text-xs font-semibold text-amber-800">Часто используемые</span>
                 </div>
-                {featuredProcs.length === 0 ? (
-                  <p className="px-3 py-2 text-xs text-stone-400 italic">Нажмите ☆, чтобы закрепить</p>
-                ) : (
-                  <div className="divide-y divide-amber-100">
-                    {featuredProcs.map(p => (
-                      <div key={p.id} className={cn('flex items-center gap-2 px-3 py-1.5', !p.active && 'opacity-40')}>
-                        <p className="flex-1 text-xs text-stone-900 truncate">{p.name}</p>
-                        <span className="text-[10px] text-stone-400 shrink-0">{p.category}</span>
-                        <button onClick={() => toggleFeatured(p)} title="Открепить">
-                          <Star size={13} className="text-amber-400 fill-amber-400 hover:fill-stone-300 hover:text-stone-300 transition-colors" />
-                        </button>
-                        <button onClick={() => setEditProc(p)} className="text-stone-400 hover:text-stone-700">
-                          <Pencil size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <span className="text-xs text-amber-500">{featuredAll.length}</span>
               </div>
-
-              {Object.entries(byCategory).sort(([a], [b]) => a.localeCompare(b)).map(([cat, procs]) => (
-                <div key={cat} className="rounded-xl border border-stone-200 overflow-hidden">
-                  <div className="px-3 py-1.5 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-stone-600">{cat}</span>
-                    <span className="text-[10px] text-stone-400">{procs.length}</span>
-                  </div>
-                  <div className="divide-y divide-stone-100">
-                    {procs.map(p => (
-                      <div key={p.id} className={cn('flex items-center gap-2 px-3 py-1.5', !p.active && 'opacity-40')}>
-                        <p className="flex-1 text-xs text-stone-900 truncate">{p.name}</p>
-                        {!p.active && <span className="text-[10px] text-stone-400 shrink-0">скрыта</span>}
-                        {p.graduation_target && <span className="text-[10px] text-stone-400 shrink-0">/{p.graduation_target}</span>}
-                        <button onClick={() => toggleFeatured(p)} title={p.featured ? 'Открепить' : 'Закрепить'}>
-                          <Star size={13} className={cn(
-                            'transition-colors',
-                            p.featured ? 'text-amber-400 fill-amber-400' : 'text-stone-300 fill-transparent hover:text-amber-300'
-                          )} />
-                        </button>
-                        <button onClick={() => setEditProc(p)} className="text-stone-400 hover:text-stone-700">
-                          <Pencil size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+              {featuredAll.length === 0 ? (
+                <p className="px-3 py-2 text-xs text-stone-400 italic">Нажмите ☆, чтобы закрепить</p>
+              ) : (
+                <div className="divide-y divide-amber-100">
+                  {featuredAll.map(p => (
+                    <div key={p.id} className={cn('flex items-center gap-2 px-3 py-1.5', !p.active && 'opacity-40')}>
+                      <p className="flex-1 text-xs text-stone-900 truncate">{p.name}</p>
+                      <span className="text-[10px] text-stone-400 shrink-0">{p.category}</span>
+                      <button onClick={() => toggleFeatured(p)} title="Открепить">
+                        <Star size={13} className="text-amber-400 fill-amber-400 hover:fill-stone-300 hover:text-stone-300 transition-colors" />
+                      </button>
+                      <button onClick={() => setEditProc(p)} className="text-stone-400 hover:text-stone-700">
+                        <Pencil size={12} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
 
-            {/* ── Right: 554н management panel ── */}
-            <div className="space-y-3 sticky top-4">
-              <div className="flex gap-2">
-                <input
-                  value={search554}
-                  onChange={e => setSearch554(e.target.value)}
-                  placeholder="Поиск по 554н…"
-                  className="flex-1 rounded-xl bg-stone-100 px-4 py-2 text-sm text-stone-900 outline-none"
-                />
-                <button
-                  onClick={() => setEditProc554('new')}
-                  className="flex items-center gap-1.5 rounded-xl bg-brand-accent px-4 py-2 text-sm font-semibold text-white"
-                >
-                  <Plus size={14} /> Добавить
-                </button>
-              </div>
-              <p className="text-xs text-stone-400 px-1">
-                Приказ 554н · {procs554.length} умений · {procs554.filter(p => !p.active).length} скрыто
-              </p>
-              <div className="max-h-[75vh] overflow-y-auto space-y-2 pr-0.5">
-                {Object.entries(byCategory554).sort(([a], [b]) => a.localeCompare(b)).map(([cat, procs]) => (
-                  <div key={cat} className="rounded-xl border border-stone-200 overflow-hidden">
-                    <div className="px-3 py-1.5 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-stone-600">{cat}</span>
-                      <span className="text-[10px] text-stone-400">{procs.length}</span>
+            {/* ── All categories ── */}
+            {Object.entries(allByCategory).sort(([a], [b]) => a.localeCompare(b)).map(([cat, procs]) => (
+              <div key={cat} className="rounded-xl border border-stone-200 overflow-hidden">
+                <div className="px-3 py-1.5 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-stone-600">{cat}</span>
+                  <span className="text-[10px] text-stone-400">{procs.length}</span>
+                </div>
+                <div className="divide-y divide-stone-100">
+                  {procs.map(p => (
+                    <div key={p.id} className={cn('flex items-center gap-2 px-3 py-1.5', !p.active && 'opacity-40')}>
+                      <p className="flex-1 text-xs text-stone-900 truncate">{p.name}</p>
+                      {!p.active && <span className="text-[10px] text-stone-400 shrink-0">скрыта</span>}
+                      {p.graduation_target && <span className="text-[10px] text-stone-400 shrink-0">/{p.graduation_target}</span>}
+                      <button onClick={() => toggleFeatured(p)} title={p.featured ? 'Открепить' : 'Закрепить'}>
+                        <Star size={13} className={cn(
+                          'transition-colors',
+                          p.featured ? 'text-amber-400 fill-amber-400' : 'text-stone-300 fill-transparent hover:text-amber-300'
+                        )} />
+                      </button>
+                      <button onClick={() => setEditProc(p)} className="text-stone-400 hover:text-stone-700">
+                        <Pencil size={12} />
+                      </button>
                     </div>
-                    <div className="divide-y divide-stone-100">
-                      {procs.map(p => (
-                        <div key={p.id} className={cn('flex items-center gap-2 px-3 py-1.5', !p.active && 'opacity-40')}>
-                          <p className="flex-1 text-xs text-stone-900 truncate">{p.name}</p>
-                          {!p.active && <span className="text-[10px] text-stone-400 shrink-0">скрыта</span>}
-                          <button
-                            onClick={() => setEditProc554(p)}
-                            className="text-stone-400 hover:text-stone-700 shrink-0"
-                          >
-                            <Pencil size={12} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                {filtered554.length === 0 && (
-                  <p className="text-center text-xs text-stone-400 py-8 italic">Нет совпадений</p>
-                )}
+                  ))}
+                </div>
               </div>
-            </div>
-
+            ))}
+            {filteredAll.length === 0 && (
+              <p className="text-center text-xs text-stone-400 py-8 italic">Нет совпадений</p>
+            )}
           </div>
         )}
 
@@ -525,18 +474,10 @@ export function LogbookAdminPage() {
 
       {editProc !== undefined && (
         <ProcModal
-          proc={editProc === 'new' ? undefined : editProc}
-          field="anaesthesiology"
+          proc={typeof editProc === 'string' ? undefined : editProc}
+          field={editProc === 'new554' ? '554n' : typeof editProc === 'string' ? 'anaesthesiology' : editProc.field}
           onSave={loadProcedures}
           onClose={() => setEditProc(undefined)}
-        />
-      )}
-      {editProc554 !== undefined && (
-        <ProcModal
-          proc={editProc554 === 'new' ? undefined : editProc554}
-          field="554n"
-          onSave={loadProcedures}
-          onClose={() => setEditProc554(undefined)}
         />
       )}
     </AppShell>
